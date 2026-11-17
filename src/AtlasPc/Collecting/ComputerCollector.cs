@@ -52,6 +52,14 @@ namespace AtlasPc.Collecting
 
         private const int QueryCount = 9;
 
+        /// <summary>
+        /// Espace de noms WMI local. Passé sous forme de chaîne parce que
+        /// <see cref="ManagementObjectSearcher"/> n'offre pas de constructeur
+        /// <c>(ObjectQuery, EnumerationOptions)</c> : la surcharge réellement disponible
+        /// est <c>(string scope, string queryString, EnumerationOptions options)</c>.
+        /// </summary>
+        private const string ScopePath = @"\\.\root\cimv2";
+
         public static CollectResult Collect()
         {
             var watch = Stopwatch.StartNew();
@@ -266,7 +274,8 @@ namespace AtlasPc.Collecting
                     ReturnImmediately = true
                 };
 
-                using (var searcher = new ManagementObjectSearcher(new ObjectQuery(wql), options))
+                // Surcharge (scope, requête, options) : la seule des trois qui existe.
+                using (var searcher = new ManagementObjectSearcher(ScopePath, wql, options))
                 using (var items = searcher.Get())
                 {
                     foreach (ManagementBaseObject item in items)

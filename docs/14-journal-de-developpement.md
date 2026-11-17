@@ -12,7 +12,9 @@ machine cible**, et ce qu'il faut faire à la main.
 > **Retour du PC (17/11)** : compilation **0 erreur, 0 avertissement** (MSBuild 17.14.60).
 > Un défaut de liaison empêchait le lancement, corrigé au § 1.5. La recette sur
 > Windows 10 a ensuite été **entièrement réussie** : l'étape 1 est **validée** (§ 1.6).
-> L'**étape 2** est écrite et poussée le 17/11 (§ 2) : compilation et recette à faire.
+> L'**étape 2** est écrite et poussée le 17/11 (§ 2). Sa première compilation sur le PC
+> a relevé **deux erreurs CS1503** sur le constructeur du chercheur WMI ; elles sont
+> corrigées au § 2.6. Recompilation et recette restent à faire.
 
 ---
 
@@ -310,7 +312,64 @@ collecte. Aucun Windows dans cet environnement.
 | 5 | Élévation | aucune fenêtre UAC | signaler |
 | 6 | Persistance | fiche identique après redémarrage | signaler |
 
-### 2.6 Ce qui n'est pas encore là, volontairement
+### 2.6 Correction de compilation — le constructeur du chercheur WMI
+
+**Erreur relevée sur le PC** (MSBuild 17.14.60), au commit `99f3f9c` :
+
+```
+ComputerCollector.cs(269,68): error CS1503 : conversion impossible de System.Management.ObjectQuery en string
+ComputerCollector.cs(269,90): error CS1503 : conversion impossible de System.Management.EnumerationOptions en string
+```
+
+**Ligne fautive** (`Run`, l'appel unique qui sert aux neuf requêtes) :
+
+```csharp
+using (var searcher = new ManagementObjectSearcher(new ObjectQuery(wql), options))
+```
+
+**Cause exacte.** `ManagementObjectSearcher` n'a pas de constructeur
+`(ObjectQuery, EnumerationOptions)`. Le compilateur a donc tenté la seule surcharge à deux
+paramètres acceptant un `ObjectQuery` — `(string queryString, …)` — d'où les deux
+conversions impossibles. Les sept constructeurs réels, vérifiés dans la source de
+référence de `System.Management` :
+
+| Constructeur | Options de délai ? |
+|---|---|
+| `()` · `(string)` · `(ObjectQuery)` | non |
+| `(string scope, string queryString)` | non |
+| `(ManagementScope, ObjectQuery)` | non |
+| **(string scope, string queryString, EnumerationOptions)** | **oui** |
+| **(ManagementScope, ObjectQuery, EnumerationOptions)** | **oui** |
+
+**Correction.** La surcharge `(scope, requête, options)`, avec l'espace de noms local dans
+une constante explicite :
+
+```csharp
+private const string ScopePath = @"\\.\root\cimv2";
+...
+using (var searcher = new ManagementObjectSearcher(ScopePath, wql, options))
+```
+
+C'est un appel unique : les **neuf requêtes** passent par `Run`, elles sont donc toutes
+corrigées d'un coup. Aucun autre `ManagementObjectSearcher`, `ObjectQuery` ou
+`ManagementScope` n'existe dans le code (vérifié par recherche globale).
+
+**Ce qui n'a pas été touché.** Les protections demandées restent en place :
+
+- `EnumerationOptions { Timeout = 10 s, ReturnImmediately = true }` : conservé tel quel ;
+- budget interne de 30 s (`watch.Elapsed > QueryBudget`) : conservé ;
+- un `try/catch` par appel, qui capture aussi un dépassement de délai survenant pendant
+  l'énumération (l'exception est levée dans la boucle, elle remonte au `catch`) ;
+- libération : `using` sur le chercheur **et** sur la collection de résultats. Le
+  `ManagementScope` créé en interne par cette surcharge n'est **pas** libérable — la
+  classe n'implémente pas `IDisposable` (vérifié dans la source), il n'y a donc rien à
+  libérer à la main de ce côté.
+
+**Portée de l'information.** Le compilateur n'a signalé que ces deux erreurs, dans un seul
+appel : le reste du code de l'étape 2 (modèles, view-model, vue, magasin) passe donc la
+vérification de types. La compilation complète et la recette restent à faire sur le PC.
+
+### 2.7 Ce qui n'est pas encore là, volontairement
 
 - aucune lecture de fichiers : `roots_count` reste à 0, `scan_root` est vide ;
 - les rubriques Fichiers, Logiciels, Outils, Développement et Évolution restent des vues
