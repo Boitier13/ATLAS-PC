@@ -1,9 +1,9 @@
 # Livrable 8 — Plan de développement
 
-> **Révision du 17 novembre 2026 (2ᵉ).** Le plan garde **cinq étapes**, mais l'étape 3
-> est scindée en deux moitiés livrables : **3A** (scan et stockage) et **3B** (la rubrique
-> Fichiers : exploration, recherche, filtres). 3B est le plus gros bloc du projet, parce
-> que c'est la fonction centrale.
+> **Révision du 17 novembre 2026 (3ᵉ).** Le plan garde **cinq étapes**, l'étape 3 étant
+> scindée en **3A** (scan et stockage) et **3B** (la rubrique Fichiers). La vérification du
+> 17/11 ajoute trois critères mesurables : les trois cas de recherche (§ 5), l'absence de
+> relecture du disque, et le traitement d'un renommage comme retrait + ajout (§ 7).
 
 Hypothèse : une personne, à temps partiel. Les durées ordonnent le travail ; ce ne sont
 pas des engagements.
@@ -87,13 +87,14 @@ valeur ou un `—` justifié.
 | `BatchWriter` + `ScanStore` | lots de 500 entrées ou 2 s, transaction par lot |
 | Tables `folder`, `file`, `scan_issue` | avec les index du livrable 5, dont `ix_file_name` |
 | `ProjectDetector` | branché dans la boucle (aucune lecture supplémentaire) |
-| Sélection des disques | cases à cocher (fixes par défaut), statut par racine |
+| Sélection des disques | cases à cocher, **choisies par l'utilisateur** ; un inventaire ne démarre que sur les disques cochés |
+| Statut par racine | `complete`, `partial`, `cancelled`, `inaccessible` — et l'annulation écrit le lot en cours puis marque les dossiers restants |
 | Progression et annulation | bandeau, `Échap`, états par racine |
 
 **Tests** : totaux exacts sur une arborescence générée, points de reparse non suivis,
-dossier inaccessible → une ligne `scan_issue`, annulation → inventaire cohérent,
-clôture par racine (deux disques = deux statuts), pic mémoire, garde-fou de lecture
-seule.
+**un dossier inaccessible = une ligne `scan_issue`**, annulation → lot en cours écrit +
+dossiers restants marqués `cancelled_before` + racine `cancelled`, clôture par racine
+(deux disques = deux statuts), pic mémoire, garde-fou de lecture seule.
 
 **Critères de sortie**
 - `C:` analysé entièrement sans administrateur, statut explicite ;
@@ -129,6 +130,7 @@ chemin disparu, absence d'API d'écriture dans `Shell`.
 
 | Critère | Seuil |
 |---|---|
+| Recherche par **nom exact** (court-circuit d'index) | < 20 ms |
 | Recherche par préfixe | < 100 ms |
 | Recherche par sous-chaîne (400 000 fichiers) | **< 1,5 s**, à froid et à chaud |
 | Application d'un filtre (page) | < 300 ms |
@@ -138,10 +140,30 @@ chemin disparu, absence d'API d'écriture dans `Shell`.
 | Affichage d'un total sans mention de couverture | **zéro** |
 | Démarrage d'une application/l'Explorateur hors ATLAS PC | uniquement sur action explicite |
 
+### Protocole de mesure des trois recherches
+
+À exécuter sur l'OptiPlex 780, base réelle, application lancée, une seule fois par
+configuration. Résultat consigné dans ce document.
+
+| Cas | Saisie | 100 000 fichiers | 400 000 fichiers | 1 000 000 fichiers |
+|---|---|---|---|---|
+| Nom exact | un nom complet existant | à froid / à chaud | à froid / à chaud | à froid / à chaud |
+| Préfixe | les 5 premiers caractères | idem | idem | idem |
+| Sous-chaîne | 4 caractères pris au milieu | idem | idem | idem |
+| Sous-chaîne sans résultat | chaîne inexistante | idem | idem | idem |
+
+- « à froid » : premier lancement après redémarrage, cache système vidé par le
+  redémarrage ;
+- « à chaud » : deuxième exécution immédiate ;
+- on relève la **durée perçue** (du dernier caractère saisi à l'affichage de la première
+  page), pas seulement le temps SQL ;
+- à 1 000 000 de fichiers, si la sous-chaîne dépasse 1,5 s à chaud, la contingence FTS5
+  s'applique sans discussion.
+
 > **Décision conditionnelle (recherche).** Si la mesure de la sous-chaîne dépasse
 > **1,5 s** sur la machine cible, on ajoute la table virtuelle `file_name_fts`
 > (FTS5, `tokenize='trigram'`), alimentée en fin de scan. C'est **une table et une
-> requête** de plus : le schéma des 11 tables ne change pas, aucune autre partie du
+> requête** de plus : le schéma des 10 tables ne change pas, aucune autre partie du
 > logiciel n'est touchée. La mesure et la décision sont consignées.
 
 ---
@@ -173,8 +195,10 @@ sans ; aucun faux positif de projet sur une arborescence piégée (`node_modules
 
 **Tests** : jeu de référence (20 fichiers créés, 3 modifiés, 2 supprimés) → résultat
 exactement conforme ; **zone non analysée** → « disparitions non vérifiables », jamais
-« supprimés » ; disques différents → comparaison refusée avec message ; inventaire
-`partial` → bandeau et comportement cohérent.
+« supprimés » ; **disque annulé** → aucune suppression confirmée ; **renommage** → 1
+supprimé + 1 ajouté, sans reconnaissance de déplacement ; disques différents →
+« non comparable » avec message ; inventaire `partial` → bandeau et comportement
+cohérent.
 
 **Recette globale**
 
@@ -192,7 +216,10 @@ exactement conforme ; **zone non analysée** → « disparitions non vérifiable
 | Comparaison de deux inventaires | < 3 s |
 | Écritures hors `%LOCALAPPDATA%\ATLAS PC\` | **zéro** |
 | Fausse annonce de suppression en zone non analysée | **zéro** |
+| Fausse annonce de suppression sur un disque interrompu | **zéro** |
 | Total de résultats affiché sans mention de couverture | **zéro** |
+| Accès disque hors ouverture d'un élément | **zéro** |
+| Recherche après suppression du dossier analysé | résultats identiques |
 
 ---
 
@@ -220,6 +247,7 @@ données temporaires.
 | Livrer la rubrique Fichiers sans fil ni recherche | ce serait un tableau d'inventaire, exactement ce qu'il ne faut pas |
 | Ajouter FTS5 « pour être sûr » | coût de stockage réel ; décision prise sur mesure, pas par principe |
 | Charger tous les résultats pour les compter | la pagination et le `COUNT` séparé suffisent |
+| Détecter les déplacements et renommages | décision de V1 : retrait + ajout, sans heuristique (§ 7) |
 | Filtrer en mémoire | les filtres sont du SQL, sinon la pagination devient fausse |
 | Ajouter le treemap en étape 3B | non exigé, coûteux |
 | Optimiser avant de mesurer | les seuils sont posés à l'étape 1 et vérifiés à chaque étape |

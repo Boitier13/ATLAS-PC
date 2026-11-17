@@ -1,9 +1,10 @@
 # Livrable 4 — Architecture simplifiée et justification
 
-> **Révision du 17 novembre 2026 (2ᵉ).** Ce document remplace l'architecture à sept
-> projets du dossier initial. Tout ce qui n'est pas nécessaire à la V1 a été retiré, et
-> la **rubrique Fichiers devient la fonction centrale** : elle structure l'architecture,
-> la base et le plan. Détail des suppressions : [`00-lisez-moi.md`](00-lisez-moi.md) § 5.
+> **Révision du 17 novembre 2026 (3ᵉ).** Ce document remplace l'architecture à sept
+> projets du dossier initial. La **rubrique Fichiers est la fonction centrale** : elle
+> structure l'architecture, la base et le plan. La vérification du 17/11 a durci le statut
+> d'un disque interrompu (§ 5.4), précisé les trois cas de recherche (§ 6.4) et retiré une
+> table (§ 8). Détail des suppressions : [`00-lisez-moi.md`](00-lisez-moi.md) § 5.
 
 ---
 
@@ -89,7 +90,7 @@ src/AtlasPc/
 4. Pour chaque disque coché par l'utilisateur :
      4a. créer la ligne `scan_root` (status = running)
      4b. parcourir, écrire par lots            → tables `folder`, `file`, `scan_issue`
-     4c. clôturer la racine : complete | partial | inaccessible
+     4c. clôturer la racine : complete | partial | cancelled | inaccessible
 5. Clôturer l'inventaire : totaux, status
 6. Retour à l'interface, rubrique Fichiers ouverte
 ```
@@ -165,10 +166,22 @@ rapide.
 - compteurs (fichiers, dossiers, octets, racine courante, chemin courant) publiés toutes
   les **500 ms** ;
 - `CancellationToken` vérifié **à chaque dossier** ;
-- trois issues par racine : `complete`, `partial` (arrêt demandé, données conservées),
-  `inaccessible` (racine absente ou refusée) ; l'inventaire est `complete` seulement si
-  toutes ses racines le sont ;
-- un dossier illisible produit **une** ligne `scan_issue` et n'interrompt rien.
+- **quatre statuts par racine**, et ils ne se confondent pas :
+
+| Statut | Sens | Effet sur la comparaison |
+|---|---|---|
+| `complete` | parcours terminé, aucune zone en erreur | suppressions décidables |
+| `partial` | parcours terminé, au moins une zone en erreur | suppressions décidables, garde `scan_issue` appliquée |
+| `cancelled` | **parcours interrompu** par l'utilisateur | **aucune suppression confirmée** |
+| `inaccessible` | racine absente ou refusée | **aucune suppression confirmée** |
+
+- l'inventaire est `complete` seulement si toutes ses racines le sont ;
+- un dossier illisible produit **une** ligne `scan_issue` (une par dossier) et
+  n'interrompt rien ;
+- **à l'annulation** : le lot en cours est écrit, un `scan_issue` de nature
+  `cancelled_before` est enregistré pour le dossier en cours et pour les dossiers restants,
+  puis la racine passe en `cancelled`. Ainsi, même interrompu, un scan ne peut pas faire
+  croire à des fichiers disparus.
 
 ### 5.5 Choix assumés, avec leur conséquence
 
@@ -231,17 +244,19 @@ C:\ › Users › william › Documents › Factures   ← fil d'Ariane, 1 clic 
   [`09-interface.md`](09-interface.md) § 3) ;
 - menu contextuel : *Ouvrir*, *Ouvrir l'emplacement*, *Copier le chemin*.
 
-### 6.4 La recherche : deux niveaux, une seule requête visible
+### 6.4 La recherche : trois cas, deux stratégies
 
-L'utilisateur tape dans **une** zone de recherche. Le logiciel choisit la stratégie.
+L'utilisateur tape dans **une** zone de recherche. Le logiciel choisit la stratégie, sans
+rien lui demander.
 
-**Niveau 1 — le nom commence par la saisie** (`fact`). Index
-`ix_file_name(inventory_id, name COLLATE NOCASE)` : `LIKE 'fact%'` est une **recherche
-d'intervalle**, instantanée.
+| Cas | Exemple | Stratégie | Objectif |
+|---|---|---|---|
+| **Nom exact** | `rapport-2026.pdf` | égalité sur l'index des noms — **court-circuit** : si elle renvoie un résultat, on s'arrête là | < 20 ms |
+| **Préfixe** | `rapport` | `LIKE 'rapport%'` = recherche d'intervalle sur `ix_file_name` | < 100 ms |
+| **Sous-chaîne** | `apport` | `LIKE '%apport%'` = parcours de l'index des noms (compact : le nom seul, pas la ligne) | < 1,5 s |
 
-**Niveau 2 — le nom contient la saisie** (`actu`). `LIKE '%actu%'` ne peut pas utiliser
-d'index comme intervalle ; il **parcourt l'index des noms**, qui est compact (nom seul,
-pas la ligne entière), et ne lit les lignes complètes que pour les résultats affichés.
+Le court-circuit du nom exact est une optimisation de requête, pas une option
+d'interface : l'utilisateur tape un nom complet, la réponse est immédiate.
 
 ```sql
 -- les deux niveaux, une seule requête paramétrée
@@ -253,8 +268,10 @@ ORDER BY f.name
 LIMIT 200 OFFSET :decalage;
 ```
 
-- **Ordre de grandeur attendu** : niveau 1 < 50 ms ; niveau 2 ≈ 0,2-0,8 s pour 400 000
-  fichiers si l'index est en cache (16 Mo), davantage à froid.
+- **Ordre de grandeur attendu** sur l'OptiPlex 780 : exact < 20 ms, préfixe < 100 ms,
+  sous-chaîne ≈ 0,2-0,8 s pour 400 000 fichiers si l'index est en cache (16 Mo),
+  davantage à froid. Mesure obligatoire à l'étape 3B, sur 100 000 / 400 000 / 1 000 000
+  de fichiers (protocole : livrable 8 § 5).
 - **Aucune recherche ne bloque l'interface** : elle s'exécute hors du thread d'affichage,
   avec un bouton d'annulation si elle dépasse 1 s.
 - **Contingence bornée, comme pour le moteur** : si la mesure à l'étape 3B montre qu'une
@@ -274,7 +291,7 @@ LIMIT 200 OFFSET :decalage;
 | Type (famille) | traduit en liste d'extensions **dans le code** (dictionnaire statique de ~30 familles) | idem |
 | Taille | `size_bytes BETWEEN :min AND :max` | `ix_file_size` |
 | Date de modification | `modified_at BETWEEN :debut AND :fin` (ISO-8601, comparaison de chaînes) | balayage filtré |
-| Emplacement | `folder_path = :dossier` ou `LIKE :dossier || '\%'` | `ix_file_folder` |
+| Emplacement | `folder_path = :dossier` ou `LIKE :dossier \|\| '\%'` | `ix_file_folder` |
 
 Les filtres sont **cumulables** et s'appliquent **en SQL**, jamais en mémoire. Un compteur
 affiche « 1 204 résultats (500 affichés) » : le nombre total est obtenu par un
@@ -308,7 +325,7 @@ Trois garde-fous :
 
 ### 6.7 Couverture : ne jamais paraître exhaustif
 
-C'est le point le plus délicat de la rubrique, et il est traité à trois endroits :
+C'est le point le plus délicat de la rubrique, et il est traité à **six** endroits :
 
 | Situation | Ce que l'interface affiche |
 |---|---|
@@ -317,11 +334,31 @@ C'est le point le plus délicat de la rubrique, et il est traité à trois endro
 | dossier non lisible dans le dossier courant | ligne d'erreur dans le tableau des sous-dossiers + compteur |
 | inventaire annulé | badge `Annulé` et bandeau : « inventaire incomplet, résultats partiels » |
 | recherche lancée pendant un scan | mention « inventaire en cours : résultats partiels » |
+| disque au parcours interrompu | pastille rouge « parcours interrompu » dans la liste des disques |
 
 Le nombre de résultats est toujours accompagné de la mention de couverture. Un total
 n'est jamais présenté comme complet sans cette mention.
 
-### 6.8 Ce que la rubrique ne fait pas
+
+### 6.8 Aucune relecture du disque après le premier inventaire
+
+C'est une propriété à garantir, pas une intention :
+
+| Moment | Accès disque |
+|---|---|
+| démarrage de l'application | **aucun** — l'inventaire le plus récent est lu en base |
+| ouverture de la rubrique Fichiers | **aucun** |
+| navigation dans l'arbre, contenu d'un dossier | **aucun** |
+| recherche, filtres, tri, pagination | **aucun** |
+| affichage du tableau de bord et de l'Évolution | **aucun** |
+| ouverture d'un élément (action explicite) | **une** vérification d'existence, rien de plus |
+| scan | uniquement quand l'utilisateur le demande, sur **les disques qu'il a cochés** |
+
+Un inventaire n'est donc jamais refait automatiquement : une base existante suffit à
+toutes les recherches. C'est vérifié par un test qui supprime le dossier analysé après le
+scan et vérifie que la recherche renvoie toujours les mêmes résultats.
+
+### 6.9 Ce que la rubrique ne fait pas
 
 Pas de recherche dans le contenu, pas d'OCR, pas de détection de doublons, pas de
 renommage, déplacement ou suppression. Ce sont des exclusions **volontaires** de la V1.
@@ -340,8 +377,8 @@ renommage, déplacement ou suppression. Ce sont des exclusions **volontaires** d
 | GPU | `Win32_VideoController.Name` |
 | BIOS (éditeur, version) | `Win32_BIOS` |
 | Windows (nom, version, build, architecture) | `Win32_OperatingSystem` + registre `CurrentVersion` |
-| disques physiques | `Win32_DiskDrive` |
 | volumes | `Win32_LogicalDisk` (type 3) |
+| disques physiques (modèle, taille), rattachés à chaque volume | `Win32_DiskDrive` + `Win32_DiskDriveToDiskPartition` / `Win32_LogicalDiskToPartition` |
 
 Une seule classe, sept requêtes, un `try/catch` par requête, un délai de 10 s par
 requête (`EnumerationOptions.Timeout`). Toute valeur absente est `NULL` et affichée
@@ -386,8 +423,9 @@ Aucune analyse de dépendances, aucun contenu de `.git` lu.
 
 ## 8. Persistance
 
-Un fichier SQLite, `%LOCALAPPDATA%\ATLAS PC\atlas.db`, **onze tables** décrites dans
-[`08-modele-sqlite.md`](08-modele-sqlite.md).
+Un fichier SQLite, `%LOCALAPPDATA%\ATLAS PC\atlas.db`, **dix tables** décrites dans
+[`08-modele-sqlite.md`](08-modele-sqlite.md). La table `disk` du dossier précédent a été
+fusionnée dans `volume` : elle n'était pas indispensable.
 
 - une table `scan_root` par disque analysé : c'est elle qui porte le statut par
   emplacement et qui rend la recherche honnête ;
@@ -444,13 +482,14 @@ Aucune vue « Rapports » : la fonction d'export est **retirée**, pas reportée
 | nettoyage, optimisation, corbeille | contraire à la règle de lecture seule |
 | recherche dans le contenu, OCR, doublons | hors périmètre V1 |
 | renommer / déplacer / supprimer des fichiers | contraire à la règle de lecture seule |
+| **reconnaissance des déplacements et renommages** | décision de V1 : un renommage est présenté comme une suppression + un ajout, sans heuristique |
 
 ---
 
 ## 12. Résumé
 
 > ATLAS PC est **un seul projet WPF en C# sur .NET Framework 4.8**, adossé à un fichier
-> SQLite de onze tables **dont la fonction centrale est de retrouver un dossier ou un
+> SQLite de dix tables **dont la fonction centrale est de retrouver un dossier ou un
 > fichier** : arbre des disques, tableau paginé, recherche par nom (préfixe indexé, puis
 > sous-chaîne sur l'index des noms), cinq filtres SQL, chemin complet, ouverture et copie
 > du chemin. Le moteur parcourt les fichiers **avec les API standard de .NET, sur un seul

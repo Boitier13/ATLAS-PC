@@ -1,10 +1,10 @@
 # Livrable 9 — Risques, limites et points à vérifier
 
-> **Révision du 17 novembre 2026 (2ᵉ).** La rubrique Fichiers devenant la fonction
-> centrale, trois risques montent en tête : la **fausse exhaustivité**, la **lenteur de la
-> recherche par sous-chaîne** et les **effets de bord de l'ouverture d'un élément**. Les
-> risques liés aux fonctions supprimées (exports, treemap, multi-ciblage, rétention
-> automatique, ports et interfaces) ont disparu.
+> **Révision du 17 novembre 2026 (3ᵉ).** Trois risques restent en tête : la **fausse
+> exhaustivité**, la **fausse suppression** et la **lenteur de la recherche par
+> sous-chaîne**. La vérification du 17/11 a refermé une faille réelle sur le deuxième
+> (R2 : un scan **annulé** pouvait encore produire de fausses suppressions) et a retiré
+> une table inutile (`disk`).
 
 ---
 
@@ -12,8 +12,8 @@
 
 | # | Risque | Prob. | Impact | Criticité | Parade | Vérifié à |
 |---|---|---|---|---|---|---|
-| R1 | **Un résultat présenté comme exhaustif alors que le scan n'a pas tout couvert** | 3 | 5 | **15** | statut par disque (`scan_root`) + `scan_issue` ; mention obligatoire à côté de chaque total ; 4 affichages prévus | 3A, 3B |
-| R2 | **Fausse annonce de suppression** dans une zone non analysée | 3 | 5 | **15** | filtre `scan_issue` + statut du disque ; test dédié ; catégorie « non vérifiable » | 5 |
+| R1 | **Un résultat présenté comme exhaustif alors que le scan n'a pas tout couvert** | 3 | 5 | **15** | statut par disque (`scan_root`) + `scan_issue` ; mention obligatoire à côté de chaque total ; 5 affichages prévus | 3A, 3B |
+| R2 | **Fausse annonce de suppression** — zone non analysée **ou disque interrompu** | 2 | 5 | **10** | une ligne `scan_issue` **par dossier** en échec ; statut `cancelled` distinct de `partial` et bloquant toute suppression ; deux tests dédiés | 3A, 5 |
 | R3 | **Recherche par sous-chaîne trop lente** (aucun index ne sert un `LIKE '%x%'` comme intervalle) | 3 | 4 | **12** | parcours de `ix_file_name` (index compact) + pagination ; contingence FTS5 trigram **mesurée** | 3B |
 | R4 | **Windows 10 22H2 hors support** (14/10/2025 ; ESU jusqu'en 2028), .NET Framework lié à l'OS | 5 | 3 | **15** | `net48`, aucune dépendance externe, documentation | 1 |
 | R5 | **Zones inaccessibles sans administrateur** : l'inventaire est structurellement incomplet | 5 | 3 | **15** | compteur permanent, liste des zones, badge `Partiel`, garde sur les suppressions | 3A |
@@ -21,6 +21,7 @@
 | R7 | **Durée d'inventaire longue** (5-15 min estimés pour `C:`) | 4 | 3 | **12** | progression crédible, annulation rapide, statut par racine | 3A |
 | R8 | **Effets de bord de l'ouverture** : lancer un fichier exécute un programme, et le système peut l'ajouter aux « éléments récents » | 3 | 3 | **9** | ouverture sur action explicite seulement ; chemin issu de la base, jamais d'une saisie ; mention dans la note de bas de tableau | 3B |
 | R9 | **Base volumineuse** (85-110 Mo par inventaire, index de recherche) et utilisateur qui ne supprime pas | 4 | 3 | **12** | taille affichée, avertissement au-delà de 10 inventaires, suppression en un clic | 3A, 5 |
+| R9b | **Table ou colonne inutile** ajoutée par confort, qui alourdit le schéma et la maintenance | 3 | 2 | **6** | audit des 10 tables (livrable 5 § 2) ; toute table doit citer la fonction qu'elle sert | continu |
 | R10 | **Démarrage à froid trop lent** (WPF, antivirus) | 3 | 3 | **9** | `net48` sans auto-extraction ; mesure et point de décision à l'étape 1 | 1 |
 | R11 | **WMI lent ou indisponible** | 3 | 3 | **9** | délai de 10 s par requête, `try/catch` par requête, valeurs `—` | 2 |
 | R12 | **Régression de périmètre** (treemap, exports, portables, recherche dans le contenu) | 3 | 3 | **9** | liste des refus (livrable 4, § 11) | continu |
@@ -102,6 +103,10 @@ compteur de zones non analysées est toujours visible.
 
 - un inventaire est une **photographie** : ce qui est créé puis supprimé entre deux
   inventaires est invisible ;
+- **un déplacement ou un renommage n'est pas reconnu** : il apparaît comme un fichier
+  retiré de son ancien emplacement et un fichier nouveau au nouvel emplacement. Décision
+  de V1 (livrable 5 § 6.4), écrite dans l'interface : la reconnaissance fiable des
+  déplacements est un problème difficile, souvent faux, et non demandé ;
 - la comparaison exige des **disques identiques** ; sinon elle est refusée disque par
   disque, avec explication ;
 - aucun export : l'historique ne vit que dans la base, sur la machine.
@@ -131,11 +136,12 @@ compteur de zones non analysées est toujours visible.
 | # | Point | Méthode | Si défavorable |
 |---|---|---|---|
 | 1 | **Nombre réel de fichiers et dossiers** des disques ciblés | `dir /s /a`, ou premier scan réel | > 1,5 M : revoir les plafonds et l'estimation de taille de base |
-| 2 | **Durée de la recherche par sous-chaîne** sur 400 000 fichiers | mesure à 3B, à froid puis à chaud | > 1,5 s : ajouter `file_name_fts` (FTS5 trigram) |
+| 2 | **Durée des trois recherches** (exact, préfixe, sous-chaîne) sur 100 k / 400 k / 1 M de fichiers | protocole du livrable 8 § 5 | > 1,5 s : ajouter `file_name_fts` (FTS5 trigram) |
 | 3 | **Version de SQLite embarquée** : `json_each`, `trigram` | `SELECT sqlite_version()` + essais | repli `IN (?,…)` ; FTS5 impossible → tri par pertinence abandonné, pas de recherche plein texte |
 | 4 | **Durée du parcours standard .NET** | mesure à 3A | > 20 min : énumérateur Win32 dans une classe dédiée |
 | 5 | **Durée de `COUNT(*)`** avec recherche et filtres | mesure à 3B | plafonner le compteur (« plus de 5 000 ») |
 | 6 | **Affichage d'un dossier de 5 000 fichiers** | mesure à 3B (`C:\Windows\System32`) | pagination plus petite (100) et index vérifié |
+| 6b | **Aucune lecture disque pendant une recherche** | test automatisé : dossier analysé supprimé après le scan, recherche relancée | si des résultats disparaissent, une lecture disque parasite existe : la localiser et la retirer |
 | 7 | **Compatibilité `System.Data.SQLite.Core` avec `net48`** | test de fumée : création, 100 k insertions, agrégation | choisir `Microsoft.Data.Sqlite` |
 | 8 | **Démarrage à froid et mémoire** de la coquille WPF | 5 essais après redémarrage, étape 1 | > 5 s / > 200 Mo : alléger le thème, sinon WinForms |
 | 9 | **Chemins longs** : combien échouent | compteur `scan_issue` | échecs massifs : activer les chemins longs puis, si insuffisant, Win32 |
@@ -187,6 +193,6 @@ Le projet est **faisable**, avec quatre réserves à accepter explicitement :
    externe.
 
 Ces réserves ne sont pas des défauts de conception : elles sont la raison des choix du
-livrable 4 — un seul projet, un seul thread, une base de onze tables, une recherche
-servie par un index de noms, et aucune fonctionnalité qui ne serve pas directement à
-retrouver un fichier.
+livrable 4 — un seul projet, un seul thread, une base de dix tables toutes justifiées, une
+recherche servie par un index de noms, et aucune fonctionnalité qui ne serve pas
+directement à retrouver un fichier.

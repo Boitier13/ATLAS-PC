@@ -1,8 +1,7 @@
 # ATLAS PC — Dossier technique préalable (V1 simplifiée)
 
 **Étude technique, sans programmation.**
-Version 2.1 — 17 novembre 2026. Remplace la version 1.0 du même jour et la version 2.0
-publiée le matin même.
+Version 2.2 — 17 novembre 2026. Remplace les versions 1.0, 2.0 et 2.1 du même jour.
 
 ---
 
@@ -68,6 +67,7 @@ binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
 | 7 | Arborescence du projet | [`10-arborescence-projet.md`](10-arborescence-projet.md) |
 | 8 | Plan en cinq étapes | [`11-plan-de-developpement.md`](11-plan-de-developpement.md) |
 | 9 | Risques, limites, points à vérifier | [`12-risques-et-limites.md`](12-risques-et-limites.md) |
+| — | **Vérifications de la v2.1** : constats et corrections | [`13-verifications.md`](13-verifications.md) |
 
 ---
 
@@ -91,12 +91,13 @@ binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
 |---|---|---|
 | Projet | **un seul projet WPF**, dossiers par responsabilité | moins de couches, moins de fichiers, plus lisible |
 | Runtime | **.NET Framework 4.8, cible unique `net48`** | présent dans Windows 10 22H2, aucun runtime à installer, démarrage rapide sur disque dur |
-| Base | **SQLite, 11 tables**, un seul paquet NuGet | fichier unique, recherche et comparaison en SQL, aucune installation |
+| Base | **SQLite, 10 tables**, un seul paquet NuGet | fichier unique, recherche et comparaison en SQL, aucune installation |
 | Racines | **1 à n disques par inventaire**, un statut par disque | la recherche doit couvrir tous les disques, et l'outil doit dire lequel est incomplet |
 | Recherche | **index sur le nom**, deux niveaux (préfixe, puis sous-chaîne sur l'index) | rapide sans index plein texte ; FTS5 seulement si la mesure l'exige |
 | Parcours | **API standard .NET** (`DirectoryInfo.EnumerateFileSystemInfos`), **un thread**, écriture par lots de 500 | simplicité ; Win32 seulement si la mesure l'exige |
 | Mémoire | **aucun fichier conservé en mémoire** | pic visé < 200 Mo sur 6 Go |
 | Historique | comparaison par **chemin complet normalisé**, suppression **manuelle** | simplicité et maîtrise par l'utilisateur |
+| Renommages | **retrait + ajout**, sans reconnaissance de déplacement | décision de V1 : pas d'heuristique, pas de faux positifs |
 | Licence du futur projet | **MIT** | compatible avec toutes les inspirations permises, exclut la copie GPL |
 
 ### 4.3 Les quatre constats qui pilotent cette version
@@ -141,7 +142,7 @@ retiré du dossier, du périmètre et du plan — sauf mention explicite « repo
 
 | Supprimé | Remplacé par | Motif |
 |---|---|---|
-| 20 tables | **11 tables** (10 en v2.0, + `scan_root` en v2.1) | |
+| 20 tables | **10 tables** (v2.0) ; `scan_root` ajoutée en v2.1, `disk` fusionnée en v2.2 | |
 | `hw_computer`, `hw_cpu`, `hw_memory_module`, `hw_gpu`, `hw_disk`, `hw_partition`, `hw_volume`, `hw_bios`, `os_info` (9 tables) | **3 tables** : `computer`, `disk`, `volume` | une ligne de matériel n'a pas besoin de neuf tables |
 | `inventory_scope` (multi-racines) | `inventory.root_path`, puis **`scan_root`** en v2.1 | une seule racine suffisait tant qu'il n'y avait pas de recherche ; voir § 5.9 |
 | `collect_status` et `field_note` (traçabilité par champ) | `—` affiché, `scan_issue` pour les erreurs de fichiers | coût de mise en œuvre très supérieur au bénéfice pour un outil personnel |
@@ -251,23 +252,40 @@ couches et interfaces.
 **Coût total de la version 2.1 : +4 jours** (23 au lieu de 19) et **+1 table**
 (11 au lieu de 10) — pour la fonction qui justifie le logiciel.
 
+### 5.10 Ce que la vérification de la v2.2 a changé
+
+Les cinq points demandés sont détaillés dans [`13-verifications.md`](13-verifications.md).
+En résumé :
+
+| Vérification | Verdict | Changement |
+|---|---|---|
+| 1. Inventaire sur disques choisis, recherches sans rescan | écart partiel | **aucune relecture du disque** spécifiée (4 livrables) + un test qui le prouve |
+| 2. Dossiers inaccessibles, pas de fausse suppression | **écart réel** | un scan **annulé** produisait encore de fausses suppressions : statut `cancelled` distinct, lot écrit, dossiers restants signalés, garde durcie |
+| 3. Trois recherches à volume | écart partiel | **nom exact** servi par un court-circuit d'index + protocole de mesure sur 3 volumes |
+| 4. Justification des tables | **une table inutile** | `disk` fusionnée dans `volume` → **10 tables** |
+| 5. Renommage = retrait + ajout | conforme mais non écrit | décision explicitée, affichée à l'écran, et testée |
+
+**Aucune fonctionnalité ajoutée.** Une table en moins, deux règles durcies, un test en
+plus par règle.
+
 ---
 
 ## 6. Effet chiffré des deux révisions
 
-| Indicateur | v1.0 | v2.0 | **v2.1** |
-|---|---|---|---|
-| Projets | 6 + 5 tests | 1 + 1 test | **1 + 1 test** |
-| Interfaces déclarées | 8 | 0 | **0** |
-| Tables SQLite | 20 | 10 | **11** |
-| Dépendances NuGet | 3 | 1 | **1** |
-| Jalons | 10 | 5 | **5** (étape 3 scindée en 3A/3B) |
-| Durée estimée | 31-43 j | 19 j | **23 j** |
-| Rubriques d'interface | 8 | 7 | **7**, dont une (Fichiers) très au-dessus des autres |
-| Fonctions de recherche | non prévues | simples | **11 fonctions spécifiées** |
-| Formats d'export | 3 | 0 | **0** |
-| Documents du dossier | 14 | 13 | **13** |
-| Maquettes | 1 | 1 | **2** |
+| Indicateur | v1.0 | v2.0 | v2.1 | **v2.2** |
+|---|---|---|---|---|
+| Projets | 6 + 5 tests | 1 + 1 test | 1 + 1 test | **1 + 1 test** |
+| Interfaces déclarées | 8 | 0 | 0 | **0** |
+| Tables SQLite | 20 | 10 | 11 | **10** |
+| Dépendances NuGet | 3 | 1 | 1 | **1** |
+| Jalons | 10 | 5 | 5 (3 scindée) | **5** (3A/3B) |
+| Durée estimée | 31-43 j | 19 j | 23 j | **23 j** |
+| Rubriques d'interface | 8 | 7 | 7 | **7**, dont Fichiers très au-dessus |
+| Fonctions de recherche | non prévues | simples | 11 | **11**, dont le nom exact servi par index |
+| Tests prévus (rubrique Fichiers) | 0 | 0 | 14 | **17** |
+| Formats d'export | 3 | 0 | 0 | **0** |
+| Documents du dossier | 14 | 13 | 13 | **14** (dont ce rapport de vérification) |
+| Maquettes | 1 | 1 | 2 | **2** |
 
 ---
 

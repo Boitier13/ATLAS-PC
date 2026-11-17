@@ -46,7 +46,7 @@ AtlasPc/
 │  ├─ Inventory.cs             id, dates, statut, disques, compteurs
 │  ├─ ScanRootInfo.cs          disque, libellé, statut, compteurs, erreur
 │  ├─ ComputerInfo.cs          matériel + Windows (une classe, des propriétés)
-│  ├─ DiskInfo.cs  VolumeInfo.cs
+│  ├─ VolumeInfo.cs            volume + disque physique (fusion de l'ancienne DiskInfo)
 │  ├─ SoftwareItem.cs  ToolInfo.cs  ProjectInfo.cs
 │  ├─ FolderRow.cs             chemin, parent, taille, fichiers, dossiers
 │  ├─ FileRow.cs               nom, dossier, extension, taille, date
@@ -56,7 +56,7 @@ AtlasPc/
 │  └─ ComparisonResult.cs      ajoutés, supprimés, non vérifiables, modifiés, delta
 │
 ├─ Data/
-│  ├─ Schema.sql               ressource embarquée, les 11 tables + index
+│  ├─ Schema.sql               ressource embarquée, les 10 tables + index
 │  ├─ Database.cs              ouverture, PRAGMA, création/migration du schéma
 │  ├─ InventoryStore.cs        créer, lister, supprimer, clôturer un inventaire
 │  ├─ ScanStore.cs             écriture par lots (racines, dossiers, fichiers, incidents)
@@ -116,7 +116,7 @@ AtlasPc/
 
 | Dossier | Fichiers | Remarque |
 |---|---|---|
-| `Models` | 13 | classes de données, sans logique |
+| `Models` | 12 | classes de données, sans logique |
 | `Data` | 8 | tout le SQL est ici |
 | `Scanning` | 3 | aucune dépendance à WPF |
 | `Collecting` | 4 | une classe par domaine |
@@ -126,7 +126,7 @@ AtlasPc/
 | `Controls` | 6 | |
 | `Themes` | 1 | |
 
-Total ≈ 56 fichiers, dont 8 XAML et un fichier SQL. C'est l'ordre de grandeur d'un
+Total ≈ 55 fichiers, dont 8 XAML et un fichier SQL. C'est l'ordre de grandeur d'un
 petit logiciel de bureau, pas d'une plateforme.
 
 **Le prix de la fonction centrale** : environ 12 fichiers de plus que la version
@@ -164,7 +164,10 @@ tests de la rubrique Fichiers sont les plus nombreux : c'est la fonction central
 | `Scanner_EnregistreLesDossiersIllisibles` | un refus d'accès ne casse pas le scan |
 | `Scanner_AnnuleSansPerdreLeLotEnCours` | l'annulation laisse un inventaire cohérent |
 | `Scanner_ClotParRacine` | deux disques = deux statuts, jamais un statut global trompeur |
-| `Search_TrouveParPrefixeEtParSousChaine` | les deux niveaux renvoient le même ensemble attendu |
+| `Scanner_AnnuleEtEcritLeLotEnCours` | à l'annulation, aucun fichier déjà vu n'est perdu |
+| `Scanner_MarqueLesDossiersNonVisites` | après annulation, les dossiers restants sont en `cancelled_before` |
+| `Search_TrouveParNomExactParPrefixeEtParSousChaine` | les trois cas renvoient l'ensemble attendu |
+| `Search_NeLitPasLeDisque` | dossier analysé **supprimé après le scan** : la recherche renvoie toujours les mêmes résultats (preuve que seule la base est lue) |
 | `Search_IgnoreLaCasseEtLesAccentsExacts` | comportement de `NOCASE` documenté et testé |
 | `Search_PagineSansDoublonNiTrou` | `ORDER BY` stable avec `LIMIT/OFFSET` |
 | `Search_FiltreParExtensionFamilleTailleDate` | chaque filtre et leur combinaison |
@@ -175,12 +178,14 @@ tests de la rubrique Fichiers sont les plus nombreux : c'est la fonction central
 | `Opener_RefuseUnCheminDisparu` | aucune tentative d'ouverture d'un fichier absent |
 | `Opener_NeModifieRien` | garde-fou : aucune API d'écriture dans `Shell` |
 | `Comparison_DistingueSuppressionEtZoneNonAnalysee` | **la règle la plus importante** |
+| `Comparison_NApprouveAucuneSuppressionSurUnScanAnnule` | un disque `cancelled` ne produit que des disparitions non vérifiables |
+| `Comparison_TraiteUnRenommageCommeRetraitPlusAjout` | même taille, même date, nom différent → 1 supprimé + 1 ajouté |
 | `Comparison_DetecteAjoutSuppressionModification` | jeu de référence créé, modifié, supprimé |
 | `Comparison_RefuseDesDisquesDifferents` | comparaison par disque, jamais silencieuse |
 | `Software_FiltreSystemComponentEtParentKeyName` | filtrage du registre correct |
 | `ProjectDetector_IgnoreNodeModules` | pas de faux projets |
 
-Vingt tests, dont quatorze sur la rubrique Fichiers. Les tests utilisent des **dossiers
+Vingt-trois tests, dont dix-sept sur la rubrique Fichiers et la comparaison. Les tests utilisent des **dossiers
 temporaires réels** et une base SQLite temporaire : aucune doublure, aucun faux système
 de fichiers.
 
@@ -190,9 +195,9 @@ de fichiers.
 
 | Fichier | Rôle | Taille attendue |
 |---|---|---|
-| `Data/Schema.sql` | les 11 tables et les index | ~140 lignes |
+| `Data/Schema.sql` | les 10 tables et les index | ~130 lignes |
 | `Data/Database.cs` | ouverture, `PRAGMA`, schéma, version | ~120 lignes |
-| `Data/ScanStore.cs` | insertion par lots, transactions, clôture des racines | ~180 lignes |
+| `Data/ScanStore.cs` | insertion par lots, transactions, clôture des racines, incidents d'annulation | ~200 lignes |
 | `Data/BrowseQueries.cs` | disques, enfants, contenu, fil d'Ariane | ~150 lignes |
 | `Data/SearchQueries.cs` | recherche, filtres, comptage, tri | ~220 lignes |
 | `Data/ComparisonQueries.cs` | 4 requêtes + lecture | ~200 lignes |

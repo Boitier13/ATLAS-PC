@@ -4,10 +4,11 @@ Maquettes : **`assets/maquette-fichiers.png`** (la rubrique centrale) et
 **`assets/maquette-atlas-pc.png`** (tableau de bord). Les libellés exacts font foi dans
 ce document.
 
-> **Révision du 17 novembre 2026 (2ᵉ).** La rubrique Fichiers n'est plus un simple
-> tableau d'inventaire : elle devient un **explorateur avec recherche**, et c'est elle
-> qui fixe le niveau d'exigence de l'interface. La palette gagne des **nuances** :
-> familles de fichiers, états, remplissage des disques, rampe de barres.
+> **Révision du 17 novembre 2026 (3ᵉ).** La rubrique Fichiers est un **explorateur avec
+> recherche** et fixe le niveau d'exigence de l'interface. La vérification du 17/11 a
+> ajouté trois précisions : aucun accès disque hors ouverture d'un élément (§ 4.9), un
+> disque interrompu ne peut produire aucune suppression (§ 4.6), et un renommage est
+> présenté comme un retrait + un ajout (§ 5.6).
 
 ---
 
@@ -223,8 +224,9 @@ mention de couverture.
 ### 4.5 La recherche
 
 - une seule zone, un seul comportement visible : l'utilisateur tape, les résultats
-  arrivent ; la stratégie (préfixe indexé, puis sous-chaîne sur l'index des noms) est
-  invisible ;
+  arrivent ; la stratégie est invisible. Trois cas sont servis sans que l'utilisateur ait
+  à choisir : **nom exact** (immédiat), **préfixe** (immédiat), **sous-chaîne** (avec
+  indicateur si cela dépasse une seconde) ;
 - pendant une recherche de plus d'une seconde : un liseré animé sur la zone et un bouton
   *Annuler* — l'interface ne se fige jamais ;
 - saisie de 1 ou 2 caractères : mention « recherche large, résultats limités » ;
@@ -232,7 +234,7 @@ mention de couverture.
 - la recherche porte sur **tous les disques** de l'inventaire choisi, sauf si le filtre
   Emplacement en décide autrement — et l'interface le dit dans le compteur.
 
-### 4.6 Couverture : quatre affichages, jamais un total trompeur
+### 4.6 Couverture : cinq affichages, jamais un total trompeur
 
 | Situation | Affichage |
 |---|---|
@@ -240,6 +242,7 @@ mention de couverture.
 | disque non accessible | pastille rouge + `non accessible`, disque non coché par défaut |
 | dossier non lisible | ligne rouge dans le tableau des sous-dossiers, `Accès refusé` |
 | inventaire annulé / en cours | bandeau : « inventaire incomplet — les résultats ne couvrent pas tout le disque » |
+| disque interrompu (`cancelled`) | pastille rouge : « parcours interrompu », et l'onglet Évolution refuse d'y conclure une suppression |
 
 Le nombre de résultats est **toujours** accompagné de cette mention ; aucun écran
 n'affiche un total nu.
@@ -262,6 +265,17 @@ n'affiche un total nu.
 | disque non analysé | « `E:` n'a pas été analysé. » + *Lancer un inventaire* |
 
 ---
+
+### 4.9 Aucune relecture du disque
+
+Le démarrage de l'application, l'ouverture de la rubrique, la navigation, la recherche,
+les filtres, la pagination et le tableau de bord **ne touchent jamais au disque** : tout
+est lu dans SQLite. Le seul accès est la vérification d'existence au moment d'ouvrir un
+élément (§ 4.7), et il n'a lieu que sur action explicite.
+
+Conséquence pour l'utilisateur : après un inventaire, la recherche est instantanée et
+fonctionne même si un disque externe a été débranché — les résultats affichés décrivent
+l'inventaire, pas l'état présent du disque.
 
 ## 5. Les six autres rubriques
 
@@ -305,10 +319,23 @@ Dépôt Git, compteurs.
 
 Sélecteurs A et B (avec les disques couverts et l'état de chacun), quatre blocs de
 synthèse (+ajoutés · −supprimés · modifiés · espace), quatre onglets : *Ajoutés*,
-*Supprimés*, *Modifiés*, *Espace occupé*. L'onglet *Supprimés* sépare les
-**suppressions confirmées** des **disparitions non vérifiables**, chaque ligne portant
-la zone responsable. Si les deux inventaires ne couvrent pas les mêmes disques, la
-comparaison est refusée disque par disque, avec explication.
+*Supprimés*, *Modifiés*, *Espace occupé*.
+
+Trois règles d'affichage :
+
+1. l'onglet *Supprimés* sépare les **suppressions confirmées** des **disparitions non
+   vérifiables**, chaque ligne portant la zone responsable ;
+2. un disque `cancelled` ou `inaccessible` dans l'inventaire B ne produit **aucune**
+   suppression confirmée : ses lignes sont toutes en « non vérifiable », avec le motif ;
+3. un disque présent dans un seul des deux inventaires est listé comme **non comparable**
+   — jamais compté comme supprimé.
+
+Et une mention permanente en bas de l'onglet *Supprimés* :
+
+> Un **déplacement** ou un **renommage** apparaît ici comme une suppression, et dans
+> l'onglet *Ajoutés* comme un fichier nouveau. ATLAS PC ne tente pas de les reconnaître.
+
+C'est une décision de V1, écrite à l'écran, pas une limite cachée.
 
 ---
 
