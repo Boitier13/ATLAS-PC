@@ -5,9 +5,14 @@ a été écrit, ce qui a été décidé pendant l'écriture, **ce qui reste à v
 machine cible**, et ce qu'il faut faire à la main.
 
 > **Avertissement de méthode.** Le développement est écrit sur une machine Linux. Un
-> projet WPF en `net48` ne se compile et ne s'exécute que sous Windows : **rien de ce qui
-> suit n'a été compilé ni lancé**. Les vérifications réellement effectuées ici sont
-> listées, les autres sont explicitement à faire de votre côté.
+> projet WPF en `net48` ne se compile et ne s'exécute que sous Windows : **rien n'est
+> compilé ni lancé ici**. Les vérifications réellement effectuées ici sont listées ; les
+> autres sont explicitement à faire de votre côté.
+>
+> **Premier retour du PC (17/11)** : la compilation de l'étape 1 réussit, **0 erreur et
+> 0 avertissement**. Un défaut de liaison empêchait le lancement ; il est corrigé au
+> § 1.5. Une compilation propre ne vaut pas validation du rendu : les points du § 1.4
+> restent à observer.
 
 ---
 
@@ -59,10 +64,15 @@ Total : 15 fichiers C#, 6 fichiers XAML, 1 fichier SQL, 2 fichiers de configurat
 | C# | accolades et parenthèses équilibrées ; aucun élément de syntaxe postérieur à C# 7.3 (`??=`, `using var`, `record`, `is not`, expression `switch`, `new()`) |
 | `x:Class` | chaque vue a son code-behind, espace de noms cohérent |
 
-**Ce qui n'a pas pu être vérifié** : compilation, exécution, rendu visuel, démarrage à
-froid, mémoire. Ce sont exactement les quatre critères de sortie de l'étape 1.
+**Ce qui n'a pas pu être vérifié ici** : compilation, exécution, rendu visuel, démarrage
+à froid, mémoire. La compilation a depuis été validée sur le PC (§ 1.4) ; l'exécution
+reste à confirmer. Ce sont les critères de sortie de l'étape 1.
 
 ### 1.4 À faire sur le PC (Visual Studio 2022)
+
+**État au 17/11** : étapes 1 et 2 ci-dessous **faites** — compilation réussie, sans erreur
+ni avertissement. Le lancement échouait sur la liaison du § 1.5, désormais corrigée.
+Restent les points 2 à 5 du tableau de contrôle.
 
 1. Ouvrir `ATLAS-PC.sln`. Si Visual Studio signale que le projet n'est pas chargé :
    vérifier que la charge de travail **« Développement .NET Desktop »** est installée.
@@ -86,7 +96,52 @@ Et deux vérifications de forme :
 - `%LOCALAPPDATA%\ATLAS PC\atlas.db` existe après le premier lancement ;
 - aucun fichier n'est créé ailleurs (à confirmer plus tard au moniteur de processus).
 
-### 1.5 Ce qui n'est pas encore là, volontairement
+### 1.5 Correction du lancement — liaison TwoWay sur `ProgressPercent`
+
+**Symptôme.** Compilation sans erreur ni avertissement, puis au lancement :
+
+> « Une liaison TwoWay ou OneWayToSource ne peut pas fonctionner sur la propriété en
+> lecture seule ProgressPercent de type AtlasPc.ViewModels.ShellViewModel. »
+
+**Contrôle fautif.** `Views/ShellWindow.xaml`, bandeau de progression :
+
+```xml
+<ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" ... />
+```
+
+**Cause exacte.** `ProgressBar` hérite de `RangeBase`, dont la propriété `Value` est
+enregistrée avec `BindsTwoWayByDefault` : toute liaison y est `TwoWay` **si le mode n'est
+pas écrit**. `ProgressPercent` est en lecture seule (`private set`), ce qui est voulu :
+c'est le parcours qui la met à jour, jamais l'interface. WPF refuse donc la liaison et
+lève une exception au chargement de la fenêtre.
+
+**Correction.** `Value="{Binding ProgressPercent, Mode=OneWay}"`, avec un commentaire sur
+place. Aucune autre modification : le ViewModel garde sa propriété en lecture seule, le
+reste de l'étape 1 est inchangé.
+
+**Pourquoi ce défaut n'apparaissait qu'ici.** `TextBlock.Text` est `OneWay` par défaut :
+les treize autres liaisons vers des propriétés en lecture seule (`CurrentTitle`,
+`StatusText`, `FilesText`, `LatestInventory`…) ne posaient aucun problème. Seule une
+**cible** à mode par défaut `TwoWay` pouvait échouer.
+
+**Audit des 52 liaisons de l'application** (fait après correction) :
+
+| Contrôle à mode `TwoWay` par défaut | Liaison | Verdict |
+|---|---|---|
+| `ListBox` / `Selector.SelectedItem` | `SelectedSection` | source avec setter public → `Mode=TwoWay` conservé |
+| `ProgressBar.Value` | `ProgressPercent` | source en lecture seule → **corrigé en `Mode=OneWay`** |
+| `TextBox.Text`, `ToggleButton.IsChecked`, `Slider.Value`, `ComboBox`, `DatePicker` | — | absents du XAML à ce stade |
+
+**Règle ajoutée** à `07-architecture-cible.md` § 3 : sur une cible à mode par défaut
+`TwoWay`, le mode est toujours écrit explicitement — `TwoWay` seulement si la propriété
+source a un setter public. Elle s'appliquera notamment à la zone de recherche de
+l'étape 3B (`TextBox.Text`), où la saisie sera liée en `TwoWay` à une propriété
+modifiable.
+
+**Reste à vérifier sur le PC** : les cinq points du § 1.4, plus la valeur affichée dans
+le bandeau (elle doit passer de 0 à 100 % puis disparaître).
+
+### 1.6 Ce qui n'est pas encore là, volontairement
 
 - les six rubriques affichent un texte d'attente, sans données ;
 - les quatre cartes du tableau de bord affichent `—` ;

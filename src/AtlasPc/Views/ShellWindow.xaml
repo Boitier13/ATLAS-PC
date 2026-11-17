@@ -92,8 +92,10 @@
                     <TextBlock Grid.Column="0" Text="{Binding ProgressText}" VerticalAlignment="Center"
                                FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"
                                TextTrimming="CharacterEllipsis" />
+                    <!-- ProgressBar.Value est une cible TwoWay par défaut : sans Mode=OneWay,
+                         WPF refuse la liaison vers la propriété en lecture seule ProgressPercent. -->
                     <ProgressBar Grid.Column="1" Width="220" Height="6" Margin="16,0"
-                                 Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
+                                 Minimum="0" Maximum="100" Value="{Binding ProgressPercent, Mode=OneWay}"
                                  Foreground="{StaticResource Accent500Brush}"
                                  Background="{StaticResource Accent100Brush}"
                                  BorderThickness="0" VerticalAlignment="Center" />

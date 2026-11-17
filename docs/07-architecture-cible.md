@@ -78,7 +78,12 @@ src/AtlasPc/
 - aucun SQL hors de `Data` ;
 - aucune API d'écriture de fichier ni de registre dans `Scanning`, `Collecting` et
   `Shell` ;
-- aucune interface déclarée pour un seul implémenteur.
+- aucune interface déclarée pour un seul implémenteur ;
+- **mode de liaison explicite** sur toute cible dont le mode par défaut est `TwoWay`
+  (`ProgressBar`/`Slider.Value`, `TextBox.Text`, `Selector.SelectedItem/SelectedIndex`,
+  `ToggleButton.IsChecked`, `DatePicker.SelectedDate`) : `Mode=TwoWay` uniquement si la
+  propriété source a un setter public, `Mode=OneWay` sinon. Une source en lecture seule
+  liée à ces cibles fait échouer le chargement de la vue.
 
 ---
 
