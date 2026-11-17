@@ -57,7 +57,8 @@ AtlasPc/
 │
 ├─ Data/
 │  ├─ Schema.sql               ressource embarquée, les 10 tables + index
-│  ├─ Database.cs              ouverture, PRAGMA, création/migration du schéma
+│  ├─ Database.cs              ouverture, PRAGMA, création du schéma, intégrité
+│  ├─ SqlDate.cs               format ISO-8601 UTC de la base
 │  ├─ InventoryStore.cs        créer, lister, supprimer, clôturer un inventaire
 │  ├─ ScanStore.cs             écriture par lots (racines, dossiers, fichiers, incidents)
 │  ├─ BrowseQueries.cs         disques, enfants d'un dossier, contenu, fil d'Ariane
@@ -78,7 +79,8 @@ AtlasPc/
 │
 ├─ Shell/
 │  ├─ ItemOpener.cs            vérifie l'existence, ouvre dossier ou fichier
-│  └─ ClipboardHelper.cs       copie d'un chemin, tolérant à l'absence de presse-papiers
+│  ├─ ClipboardHelper.cs       copie d'un chemin, tolérant à l'absence de presse-papiers
+│  └─ Dialogs.cs               confirmation, erreur, proposition de recréer la base
 │
 ├─ ViewModels/
 │  ├─ ObservableObject.cs      ~20 lignes : INotifyPropertyChanged
@@ -95,7 +97,9 @@ AtlasPc/
 │  ├─ DashboardView.xaml       OrdinateurView.xaml
 │  ├─ FilesView.xaml           arbre + filtres + tableau + ligne d'état
 │  ├─ SoftwareView.xaml        ToolsView.xaml   DevelopmentView.xaml
-│  └─ EvolutionView.xaml
+│  ├─ EvolutionView.xaml
+│  └─ PlaceholderView.xaml     **temporaire** : remplacée par chacune des vues ci-dessus
+│                              à son étape ; supprimée à la fin de l'étape 5
 │
 ├─ Controls/
 │  ├─ StatCard.xaml            carte de synthèse (icône teintée)
@@ -117,16 +121,21 @@ AtlasPc/
 | Dossier | Fichiers | Remarque |
 |---|---|---|
 | `Models` | 13 | classes de données, sans logique |
-| `Data` | 8 | tout le SQL est ici |
+| `Data` | 9 | tout le SQL est ici |
 | `Scanning` | 3 | aucune dépendance à WPF |
 | `Collecting` | 4 | une classe par domaine |
-| `Shell` | 2 | 5 commandes, 60 lignes à elles deux |
+| `Shell` | 3 | ouverture, presse-papiers, dialogues |
 | `ViewModels` | 11 | dont deux pour la rubrique Fichiers |
 | `Views` | 8 | XAML |
 | `Controls` | 6 | |
 | `Themes` | 1 | |
 
-Total ≈ 56 fichiers, dont 8 XAML et un fichier SQL. C'est l'ordre de grandeur d'un
+Total ≈ 58 fichiers, dont 8 XAML et un fichier SQL — hors vue de remplacement
+temporaire (`PlaceholderView`).
+
+**Le schéma complet est créé dès l'étape 1.** Les dix tables existent avant leurs
+collecteurs : cela évite toute migration, que le dossier refuse explicitement. Une table
+vide ne coûte rien et le script est idempotent. C'est l'ordre de grandeur d'un
 petit logiciel de bureau, pas d'une plateforme.
 
 **Le prix de la fonction centrale** : environ 12 fichiers de plus que la version

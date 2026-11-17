@@ -53,7 +53,7 @@ src/AtlasPc/
   Data/         SQLite : schéma, écriture par lots, lectures, recherche, comparaison
   Scanning/     parcours des fichiers
   Collecting/   matériel, logiciels, outils, projets
-  Shell/        ouverture d'éléments, presse-papiers  (5 commandes, 2 classes)
+  Shell/        ouverture d'éléments, presse-papiers, dialogues  (5 commandes, 3 classes)
   ViewModels/   logique de présentation
   Views/        XAML
   Controls/     petits contrôles réutilisables (carte, barre, badge, pastille)
@@ -73,7 +73,8 @@ src/AtlasPc/
 
 **Règles, vérifiables en relecture :**
 
-- aucun `using System.Windows` hors de `ViewModels`, `Views`, `Controls` ;
+- aucun `using System.Windows` hors de `ViewModels`, `Views`, `Controls` et `Shell`
+  (les boîtes de dialogue y sont regroupées pour que les ViewModels n'y touchent pas) ;
 - aucun SQL hors de `Data` ;
 - aucune API d'écriture de fichier ni de registre dans `Scanning`, `Collecting` et
   `Shell` ;
@@ -170,6 +171,7 @@ rapide.
 
 | Statut | Sens | Effet sur la comparaison |
 |---|---|---|
+| `running` | parcours en cours (transitoire) | aucune suppression confirmée ; ligne supprimée au démarrage suivant si la session a été tuée |
 | `complete` | parcours terminé, aucune zone en erreur | suppressions décidables |
 | `partial` | parcours terminé, au moins une zone en erreur | suppressions décidables, garde `scan_issue` appliquée |
 | `cancelled` | **parcours interrompu** par l'utilisateur | **aucune suppression confirmée** |

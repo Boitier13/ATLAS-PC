@@ -74,8 +74,8 @@ CREATE TABLE inventory (
     id            INTEGER PRIMARY KEY,
     started_at    TEXT    NOT NULL,             -- ISO-8601 UTC
     finished_at   TEXT,
-    status        TEXT    NOT NULL              -- complete | partial | cancelled
-                  CHECK (status IN ('complete','partial','cancelled')),
+    status        TEXT    NOT NULL              -- running pendant le scan
+                  CHECK (status IN ('running','complete','partial','cancelled')),
     app_version   TEXT    NOT NULL,
     roots_count   INTEGER NOT NULL DEFAULT 0,
     files_count   INTEGER NOT NULL DEFAULT 0,
@@ -93,7 +93,7 @@ CREATE TABLE scan_root (
     drive         TEXT    NOT NULL,             -- 'C:'
     label         TEXT,                         -- nom du volume
     status        TEXT    NOT NULL              -- voir § 3.1
-                  CHECK (status IN ('complete','partial','cancelled','inaccessible')),
+                  CHECK (status IN ('running','complete','partial','cancelled','inaccessible')),
     files_count   INTEGER NOT NULL DEFAULT 0,
     folders_count INTEGER NOT NULL DEFAULT 0,
     total_bytes   INTEGER NOT NULL DEFAULT 0,
@@ -201,11 +201,17 @@ CREATE TABLE scan_issue (
 
 | Statut | Quand | Conséquence sur la comparaison |
 |---|---|---|
+| `running` | inventaire ou disque **en cours** de parcours | transitoire : une ligne `running` n'est jamais comparable, et elle est supprimée au démarrage suivant si la session a été interrompue |
 | `complete` | parcours terminé, **aucune** zone en erreur | suppressions décidables dossier par dossier |
 | `partial` | parcours terminé, **mais** au moins une zone en erreur | suppressions décidables dossier par dossier (la garde `scan_issue` s'applique) |
 | `cancelled` | parcours **interrompu** par l'utilisateur | **aucune suppression confirmée** sur ce disque |
 | `inaccessible` | racine refusée ou absente | **aucune suppression confirmée** sur ce disque |
 
+> **Correction du 17/11 (mise en œuvre de l'étape 1).** Le statut `running` a été ajouté
+> aux deux `CHECK` : une ligne doit exister pendant le parcours, et le schéma n'autorisait
+> que des états finaux. La règle de comparaison est inchangée — `running` n'est ni
+> `complete` ni `partial`, donc il ne peut produire aucune suppression confirmée.
+>
 > **Correction du 17/11.** La version précédente ne bloquait que `inaccessible` et
 > `cancelled`, alors que le parcours annulé produisait un statut `partial` : un disque
 > interrompu à mi-parcours pouvait donc faire apparaître comme « supprimés » tous les

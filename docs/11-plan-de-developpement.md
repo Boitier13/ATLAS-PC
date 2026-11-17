@@ -47,8 +47,8 @@ projet s'arrêtait après 3B, ATLAS PC serait déjà utile.
 | `ShellWindow` | barre latérale 7 entrées, barre supérieure, zone de contenu, badge d'état |
 | `Themes/Theme.xaml` | neutres, rampe d'accent, **couleurs de familles**, couleurs d'état |
 | 7 vues vides | chacune avec son état vide et son titre |
-| `Database.cs` + `Schema.sql` | création de la base, tables `inventory` et `scan_root` |
-| `InventoryStore` | créer, lister, supprimer un inventaire |
+| `Database.cs` + `Schema.sql` | création de la base et du **schéma complet** (10 tables, idempotent) : pas de migration |
+| `InventoryStore` | créer, lister, clôturer, supprimer un inventaire ; statut `running` pendant le parcours |
 | Bandeau de progression | factice, pour valider sa place dans la mise en page |
 
 **Tests** : démarrage à froid (5 essais), navigation, création/suppression d'inventaire.

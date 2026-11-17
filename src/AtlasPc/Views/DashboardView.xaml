@@ -1,0 +1,129 @@
+<UserControl x:Class="AtlasPc.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:AtlasPc.Controls">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Quatre cartes de synthèse -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <controls:StatCard Grid.Column="0" Margin="0,0,16,0"
+                               Label="Processeur" Value="—" Hint="collecté à l'étape 2"
+                               Icon="{StaticResource IconCpu}"
+                               IconBackground="{StaticResource OkBackgroundBrush}"
+                               IconForeground="{StaticResource OkForegroundBrush}" />
+            <controls:StatCard Grid.Column="1" Margin="0,0,16,0"
+                               Label="Mémoire" Value="—" Hint="collectée à l'étape 2"
+                               Icon="{StaticResource IconMemory}"
+                               IconBackground="{StaticResource InfoBackgroundBrush}"
+                               IconForeground="{StaticResource InfoForegroundBrush}" />
+            <controls:StatCard Grid.Column="2" Margin="0,0,16,0"
+                               Label="Stockage" Value="—" Hint="volumes à l'étape 2"
+                               Icon="{StaticResource IconDisk}"
+                               IconBackground="{StaticResource WarnBackgroundBrush}"
+                               IconForeground="{StaticResource WarnForegroundBrush}" />
+            <controls:StatCard Grid.Column="3"
+                               Label="Fichiers" Value="—" Hint="parcours à l'étape 3A"
+                               Icon="{StaticResource IconFile}"
+                               IconBackground="{StaticResource FamilyImageBackgroundBrush}"
+                               IconForeground="{StaticResource FamilyImageForegroundBrush}" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource CaptionText}"
+                   Text="Étape 1 : coquille de l'application et base de données. Aucun disque n'est lu pour l'instant ; les cartes ci-dessus seront renseignées aux étapes 2 et 3A." />
+
+        <!-- Liste des inventaires -->
+        <Border Grid.Row="2" Margin="0,16,0,0" Style="{StaticResource CardBorder}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <TextBlock Text="Inventaires" Style="{StaticResource PanelTitleText}" />
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center"
+                               Text="{Binding DatabaseSizeText}" Style="{StaticResource CaptionText}" />
+                </Grid>
+
+                <DataGrid Grid.Row="1" Style="{StaticResource DataGridBase}"
+                          ItemsSource="{Binding Inventories}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Date" Width="150"
+                                            Binding="{Binding StartedText}" />
+                        <DataGridTextColumn Header="Disques" Width="110"
+                                            Binding="{Binding RootsText}" />
+                        <DataGridTextColumn Header="Fichiers" Width="100"
+                                            Binding="{Binding FilesText}" />
+                        <DataGridTextColumn Header="Taille" Width="90"
+                                            Binding="{Binding SizeText}" />
+                        <DataGridTemplateColumn Header="État" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource StatusBadge}" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   Style="{StaticResource StatusBadgeText}" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Note" Width="*" Binding="{Binding Note}" />
+                        <DataGridTemplateColumn Header="" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Supprimer" Style="{StaticResource LinkButton}"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding DataContext.DeleteInventoryCommand,
+                                                              RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- État vide -->
+                <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasInventory}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440">
+                        <TextBlock Text="Aucun inventaire" FontSize="14" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Margin="0,6,0,0" TextAlignment="Center"
+                                   Style="{StaticResource CaptionText}"
+                                   Text="Lancez un inventaire pour voir apparaître ici l'historique, sa taille en base et son état." />
+                        <Button Content="Lancer un inventaire" Margin="0,14,0,0"
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource PrimaryButton}"
+                                Command="{Binding StartInventoryCommand}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="3" Margin="0,10,0,0" Style="{StaticResource CaptionText}"
+                   Text="ATLAS PC ne modifie, ne déplace et ne supprime aucune donnée sur vos disques. Toutes les écritures restent dans son propre fichier de base, sous %LOCALAPPDATA%." />
+    </Grid>
+</UserControl>

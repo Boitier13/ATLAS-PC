@@ -1,0 +1,25 @@
+<UserControl x:Class="AtlasPc.Views.PlaceholderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource CardBorder}">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
+
+            <Border Background="{StaticResource Accent50Brush}" CornerRadius="10"
+                    Padding="10,4" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding Stage}" FontSize="12"
+                           Foreground="{StaticResource Accent700Brush}" />
+            </Border>
+
+            <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Margin="0,14,0,0"
+                       HorizontalAlignment="Center"
+                       Foreground="{StaticResource TextPrimaryBrush}" />
+
+            <TextBlock Text="{Binding Message}" Margin="0,8,0,0" TextAlignment="Center"
+                       Style="{StaticResource BodyText}" Foreground="{StaticResource TextSecondaryBrush}" />
+
+            <TextBlock Margin="0,18,0,0" TextAlignment="Center"
+                       Style="{StaticResource CaptionText}"
+                       Text="Cette rubrique n'affiche encore aucune donnée : rien n'est simulé. Elle sera livrée à l'étape indiquée ci-dessus." />
+        </StackPanel>
+    </Border>
+</UserControl>

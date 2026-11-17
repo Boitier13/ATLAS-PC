@@ -25,7 +25,12 @@ mécanique · 1440 × 900 · hors ligne · gratuit · sans droits administrateur
    développement supplémentaire (3A/3B) et une interface plus riche pour cette seule
    rubrique. Détail au § 5.9.
 
-Aucune ligne de code applicatif n'a été écrite. Aucun dépôt étudié n'a été modifié.
+Le **dossier** est complet et validé. Le **développement a commencé** : l'étape 1
+(coquille de l'application et base de données) est écrite dans `src/AtlasPc/`, prête à
+être compilée sous Windows avec Visual Studio 2022. Le suivi, les décisions prises
+pendant l'écriture et les vérifications à faire sur le PC sont dans
+[`14-journal-de-developpement.md`](14-journal-de-developpement.md). Aucun dépôt étudié
+n'a été modifié.
 
 ---
 
@@ -68,6 +73,7 @@ binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
 | 8 | Plan en cinq étapes | [`11-plan-de-developpement.md`](11-plan-de-developpement.md) |
 | 9 | Risques, limites, points à vérifier | [`12-risques-et-limites.md`](12-risques-et-limites.md) |
 | — | **Vérifications de la v2.1** : constats et corrections | [`13-verifications.md`](13-verifications.md) |
+| — | **Journal de développement** (le code commence) | [`14-journal-de-developpement.md`](14-journal-de-developpement.md) |
 
 ---
 

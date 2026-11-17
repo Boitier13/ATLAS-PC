@@ -1,0 +1,24 @@
+# Sorties de compilation
+bin/
+obj/
+artifacts/
+publish/
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Paquets restaurés
+packages/
+*.nupkg
+
+# Divers
+*.log
+*.tmp
+Thumbs.db
+desktop.ini

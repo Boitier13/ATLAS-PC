@@ -1,0 +1,114 @@
+<Window x:Class="AtlasPc.Views.ShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ATLAS PC"
+        Height="820" Width="1360" MinHeight="700" MinWidth="1120"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource PageBackgroundBrush}"
+        FontFamily="Segoe UI" FontSize="13"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="232" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= Barre latérale ============================ -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+
+                <StackPanel DockPanel.Dock="Top" Margin="20,18,20,10">
+                    <TextBlock Text="ATLAS PC" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="inventaire local" FontSize="11" Margin="0,2,0,0"
+                               Foreground="{StaticResource TextSecondaryBrush}" />
+                </StackPanel>
+
+                <Border DockPanel.Dock="Bottom" Margin="20,8,20,16" Padding="0,10,0,0"
+                        BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+                    <StackPanel>
+                        <TextBlock Text="100 % local" FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding VersionText}" FontSize="11" Margin="0,2,0,0"
+                                   Foreground="{StaticResource TextDisabledBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <ListBox ItemsSource="{Binding Sections}"
+                         SelectedItem="{Binding SelectedSection, Mode=TwoWay}"
+                         ItemContainerStyle="{StaticResource NavItemStyle}"
+                         Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Margin="0,4,0,8" />
+            </DockPanel>
+        </Border>
+
+        <!-- ================= Zone de contenu =========================== -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="56" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- En-tête -->
+            <Grid Grid.Row="0" Margin="32,0,32,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="{Binding CurrentTitle}" Style="{StaticResource H1Text}" />
+
+                <Border Grid.Column="1" Margin="0,0,12,0"
+                        Visibility="{Binding HasInventory, Converter={StaticResource BoolToVisibility}}">
+                    <Border Style="{StaticResource StatusBadge}" DataContext="{Binding LatestInventory}">
+                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource StatusBadgeText}" />
+                    </Border>
+                </Border>
+
+                <Button Grid.Column="2" Content="Lancer un inventaire"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding StartInventoryCommand}" />
+            </Grid>
+
+            <!-- Bandeau de progression -->
+            <Border Grid.Row="1" Padding="32,10"
+                    Background="{StaticResource Accent50Brush}"
+                    BorderBrush="{StaticResource Accent100Brush}" BorderThickness="0,1,0,1"
+                    Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding ProgressText}" VerticalAlignment="Center"
+                               FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"
+                               TextTrimming="CharacterEllipsis" />
+                    <ProgressBar Grid.Column="1" Width="220" Height="6" Margin="16,0"
+                                 Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
+                                 Foreground="{StaticResource Accent500Brush}"
+                                 Background="{StaticResource Accent100Brush}"
+                                 BorderThickness="0" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="{Binding ProgressPercent, StringFormat={}{0:0} %}" />
+                    <Button Grid.Column="3" Content="Annuler" Margin="16,0,0,0"
+                            Style="{StaticResource GhostButton}"
+                            Command="{Binding CancelScanCommand}" />
+                </Grid>
+            </Border>
+
+            <!-- Rubrique courante -->
+            <ContentControl Grid.Row="2" Margin="32,8,32,24"
+                            Content="{Binding SelectedSection.ViewModel}" />
+        </Grid>
+    </Grid>
+</Window>

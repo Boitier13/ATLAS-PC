@@ -104,7 +104,7 @@ majoritairement les 8 ci-dessus) : aucune table, aucune requête supplémentaire
 | Complet | `#2F7F79` | `#E6F0EE` | inventaire ou disque entièrement analysé |
 | Partiel | `#B7791F` | `#FBF3E2` | zones non analysées |
 | Inaccessible / Annulé | `#A03A2E` | `#FBECEA` | disque refusé, inventaire annulé |
-| Information | `#2F6FA0` | `#E7EFF6` | note neutre (ex. « inventaire du 03/11 ») |
+| Information | `#2F6FA0` | `#E7EFF6` | note neutre (ex. « inventaire du 03/11 ») · badge « En cours » pendant un parcours |
 
 ### 3.4 Remplissage des disques
 

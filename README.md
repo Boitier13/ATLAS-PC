@@ -14,8 +14,11 @@ historique et comparaison d'inventaires.
 **Machine cible** : Dell OptiPlex 780 · Windows 10 22H2 x64 · 6 Go de RAM · disque dur
 mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits administrateur.
 
-> Ce dépôt contient un **dossier de décision**, pas du code. Aucun fichier source n'a
-> été écrit, aucun dépôt étudié n'a été modifié.
+> Ce dépôt contient le **dossier de décision** et le **début du développement**.
+> Le code correspond à l'**étape 1** du plan (coquille de l'application et base de
+> données) ; il n'a été ni compilé ni exécuté ici : voir
+> [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md).
+> Aucun dépôt étudié n'a été modifié.
 
 ---
 
@@ -37,6 +40,7 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 | [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Cinq étapes (dont 3A scan / 3B rubrique Fichiers), tests, critères |
 | [`docs/12-risques-et-limites.md`](docs/12-risques-et-limites.md) | Risques, limites, points à vérifier |
 | [`docs/13-verifications.md`](docs/13-verifications.md) | **Vérifications de la v2.1** : cinq points, constats, corrections |
+| [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md) | **Journal du développement** : étape 1, décisions, à vérifier sur le PC |
 
 Maquettes : [`assets/maquette-fichiers.png`](assets/maquette-fichiers.png) (la rubrique centrale) et [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.png) (tableau de bord)
 
@@ -70,10 +74,20 @@ Windows. Il ne désinstalle rien, ne nettoie rien, n'exporte rien.
 ## Structure du dépôt
 
 ```
-docs/      le dossier technique (9 livrables + index)
-assets/    maquette de l'interface
+ATLAS-PC.sln       solution Visual Studio 2022 (un seul projet)
+src/AtlasPc/       application WPF, net48, C# 7.3
+docs/              le dossier technique (9 livrables + index + vérifications + journal)
+assets/            maquettes de l'interface
 ```
 
-Les seuls fichiers créés par cette étude sont documentaires. Le code source du futur
-ATLAS PC n'existe pas encore : son arborescence est *proposée* dans
-`docs/10-arborescence-projet.md`.
+## Compiler et lancer
+
+Prérequis : **Visual Studio 2022** avec la charge de travail « Développement .NET
+Desktop », et le **.NET Framework 4.8** (présent dans Windows 10 22H2).
+
+```
+ouvrir ATLAS-PC.sln  →  Générer la solution  →  F5
+```
+
+La base est créée au premier lancement dans `%LOCALAPPDATA%\ATLAS PC\atlas.db`.
+Aucune donnée n'est écrite ailleurs ; aucun disque n'est lu à ce stade.
