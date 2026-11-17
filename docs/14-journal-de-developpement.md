@@ -12,9 +12,9 @@ machine cible**, et ce qu'il faut faire à la main.
 > **Retour du PC (17/11)** : compilation **0 erreur, 0 avertissement** (MSBuild 17.14.60).
 > Un défaut de liaison empêchait le lancement, corrigé au § 1.5. La recette sur
 > Windows 10 a ensuite été **entièrement réussie** : l'étape 1 est **validée** (§ 1.6).
-> L'**étape 2** est écrite et poussée le 17/11 (§ 2). Sa première compilation sur le PC
-> a relevé **deux erreurs CS1503** sur le constructeur du chercheur WMI ; elles sont
-> corrigées au § 2.6. Recompilation et recette restent à faire.
+> L'**étape 2** est écrite, corrigée puis **validée sur Windows 10 le 17/11** (§ 2.8) :
+> compilation, collecte WMI, affichage de la mémoire et persistance confirmés. Le code du
+> jalon est gelé au commit `4ffe89f`. L'**étape 3A** n'est pas commencée.
 
 ---
 
@@ -207,7 +207,7 @@ parle à sa base*.
 
 ---
 
-## Étape 2 — Inventaire matériel et Windows — **livrée le 17/11, recette à faire**
+## Étape 2 — Inventaire matériel et Windows — **validée le 17/11 sur Windows 10**
 
 ### 2.1 Ce qui a été écrit
 
@@ -411,9 +411,28 @@ s'écrit « mémoire utilisable non lue » : jamais de repli sur l'installée.
 
 **Affichage attendu après correction** : « 6 Go » installés, « dont 5,8 Go utilisables ».
 
-### 2.8 Ce qui n'est pas encore là, volontairement
+### 2.8 Recette sur Windows 10 — 17/11 : **étape 2 validée**
 
-- aucune lecture de fichiers : `roots_count` reste à 0, `scan_root` est vide ;
+| Point | Résultat |
+|---|---|
+| Compilation (MSBuild 17.14.60) | réussie après la correction du constructeur WMI (§ 2.6) |
+| Collecte WMI | fonctionne ; la fiche matérielle est remplie |
+| Affichage de la mémoire | **corrigé** (§ 2.7) : 6 Go installés, 5,8 Go utilisables, deux valeurs distinctes |
+| **Persistance** | **confirmée** : fermeture puis réouverture, les données matérielles sont conservées et **aucune collecte ne se relance au démarrage** |
+| Statut | « Partiel », avec la note qui dit que les fichiers ne sont pas inventoriés |
+
+Deux chiffres du protocole n'ont pas été communiqués — durée de collecte et pic mémoire.
+Ils restent à relever à l'occasion, sans bloquer la suite : le seuil de 15 s est très
+au-dessus de ce qu'une collecte WMI de dix appels peut produire.
+
+**Décision.** Étape 2 **clôturée** le 17/11. Le code du jalon est gelé au commit
+`4ffe89f`. Trois commits l'ont construite : `99f3f9c` (livraison), `ac6da1e` (correctif de
+compilation), `4ffe89f` (correctif de la mémoire).
+
+### 2.9 Ce qui n'est pas encore là, volontairement
+
+- aucune lecture de fichiers : `roots_count` reste à 0, `scan_root` est vide — c'est
+  l'objet de l'étape 3A ;
 - les rubriques Fichiers, Logiciels, Outils, Développement et Évolution restent des vues
   d'attente ;
 - pas de projet de tests : il arrive à l'étape 3A ;

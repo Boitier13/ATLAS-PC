@@ -17,7 +17,7 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 > Ce dépôt contient le **dossier de décision** et le **début du développement**.
 > **Étape 1** (coquille et base de données) : **validée sur Windows 10 le 17/11** —
 > compilation sans erreur ni avertissement, sept rubriques navigables, historique persistant.
-> **Étape 2** (matériel, Windows, volumes) : écrite et poussée le 17/11, recette à faire.
+> **Étape 2** (matériel, Windows, volumes) : **validée sur Windows 10 le 17/11**.
 > Détail et guide de recette : [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md).
 > Aucun dépôt étudié n'a été modifié.
 

@@ -69,7 +69,7 @@ jalon est gelé au commit `2c15ca3`.
 
 ---
 
-## 3. Étape 2 — Inventaire matériel et Windows (3 j) — **livrée le 17/11, recette en cours**
+## 3. Étape 2 — Inventaire matériel et Windows (3 j) — **validée le 17/11**
 
 | Livrable | Détail |
 |---|---|
