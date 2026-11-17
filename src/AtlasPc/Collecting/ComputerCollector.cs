@@ -23,21 +23,29 @@ namespace AtlasPc.Collecting
     /// <summary>
     /// Lecture du matériel et de Windows, en lecture seule, sans droit administrateur.
     ///
-    /// Neuf appels WMI au total — sept classes plus deux associations :
+    /// Dix appels WMI au total — huit classes plus deux associations :
     /// <list type="number">
-    ///   <item>Win32_ComputerSystem (fabricant, modèle, mémoire installée)</item>
+    ///   <item>Win32_ComputerSystem (fabricant, modèle, mémoire utilisable)</item>
     ///   <item>Win32_Processor (nom, cœurs, threads)</item>
+    ///   <item>Win32_PhysicalMemory (modules : la seule source de la mémoire installée)</item>
     ///   <item>Win32_VideoController (cartes graphiques)</item>
     ///   <item>Win32_BIOS (éditeur, version)</item>
-    ///   <item>Win32_OperatingSystem (nom, version, build, architecture, mémoire utilisable, date)</item>
+    ///   <item>Win32_OperatingSystem (nom, version, build, architecture, date)</item>
     ///   <item>Win32_LogicalDisk, filtré DriveType = 3 (volumes fixes)</item>
     ///   <item>Win32_DiskDrive (disques physiques)</item>
     ///   <item>Win32_DiskDriveToDiskPartition (disque → partition)</item>
     ///   <item>Win32_LogicalDiskToPartition (partition → volume)</item>
     /// </list>
     ///
+    /// <para>
+    /// Deux notions de mémoire, jamais confondues : la mémoire <b>installée</b> se
+    /// calcule en additionnant les capacités des modules ; la mémoire <b>utilisable</b>
+    /// vient de <c>TotalPhysicalMemory</c>. Sur une machine de 6 Go, Windows annonce
+    /// 6,00 Go installés et 5,84 Go utilisables.
+    /// </para>
+    ///
     /// Chaque appel est isolé : son échec devient une ligne de <c>Issues</c>, jamais une
-    /// exception. Les huitième et neuvième appels servent uniquement au rattachement
+    /// exception. Les neuvième et dixième appels servent uniquement au rattachement
     /// volume → disque physique ; s'ils échouent, les colonnes <c>disk_*</c> restent vides.
     /// </summary>
     public static class ComputerCollector
@@ -50,7 +58,7 @@ namespace AtlasPc.Collecting
         /// <summary>Budget des appels WMI : au-delà, les requêtes restantes ne sont pas lancées.</summary>
         private static readonly TimeSpan QueryBudget = TimeSpan.FromSeconds(30);
 
-        private const int QueryCount = 9;
+        private const int QueryCount = 10;
 
         /// <summary>
         /// Espace de noms WMI local. Passé sous forme de chaîne parce que
@@ -81,7 +89,8 @@ namespace AtlasPc.Collecting
             var partitionToDisk = new Dictionary<string, DiskRow>(StringComparer.OrdinalIgnoreCase);
             var volumesByDevice = new Dictionary<string, VolumeInfo>(StringComparer.OrdinalIgnoreCase);
 
-            // 1. Ordinateur ------------------------------------------------------
+            // 1. Ordinateur : TotalPhysicalMemory n'est PAS la mémoire installée ----
+            // C'est la mémoire dont dispose Windows (5,84 Go sur une machine de 6 Go).
             Run("Win32_ComputerSystem",
                 "SELECT Manufacturer, Model, TotalPhysicalMemory FROM Win32_ComputerSystem",
                 item =>
@@ -89,8 +98,9 @@ namespace AtlasPc.Collecting
                     if (computer.Manufacturer == null) computer.Manufacturer = Text(item, "Manufacturer");
                     if (computer.Model == null) computer.Model = Text(item, "Model");
 
-                    var ram = Number(item, "TotalPhysicalMemory");
-                    if (ram.HasValue && ram.Value > 0) computer.RamBytes = ram;
+                    var usable = Number(item, "TotalPhysicalMemory");
+                    if (usable.HasValue && usable.Value > 0 && !computer.RamUsableBytes.HasValue)
+                        computer.RamUsableBytes = usable;
                 },
                 result, watch);
 
@@ -105,7 +115,44 @@ namespace AtlasPc.Collecting
                 },
                 result, watch);
 
-            // 3. Cartes graphiques -----------------------------------------------
+            // 3. Modules de mémoire : la mémoire installée est leur somme ----------
+            long installedRam = 0;
+            var moduleCount = 0;
+            var moduleIncomplete = false;
+
+            var queriesBeforeMemory = result.QueriesRun;
+            Run("Win32_PhysicalMemory",
+                "SELECT Capacity FROM Win32_PhysicalMemory",
+                item =>
+                {
+                    moduleCount++;
+
+                    var capacity = Positive(Number(item, "Capacity"));
+                    if (capacity.HasValue) installedRam += capacity.Value;
+                    else moduleIncomplete = true;
+                },
+                result, watch);
+
+            // Une somme partielle serait un chiffre inventé : si un module n'a pas de
+            // capacité lisible, on ne publie aucune valeur et on le consigne.
+            if (result.QueriesRun > queriesBeforeMemory)
+            {
+                if (moduleCount == 0)
+                {
+                    issues.Add("Win32_PhysicalMemory : aucun module lu, mémoire installée non déterminée");
+                }
+                else if (moduleIncomplete)
+                {
+                    issues.Add("Win32_PhysicalMemory : un module sans capacité lisible, " +
+                               "mémoire installée non déterminée");
+                }
+                else if (installedRam > 0)
+                {
+                    computer.RamBytes = installedRam;
+                }
+            }
+
+            // 4. Cartes graphiques -----------------------------------------------
             Run("Win32_VideoController",
                 "SELECT Name FROM Win32_VideoController",
                 item =>
@@ -115,7 +162,7 @@ namespace AtlasPc.Collecting
                 },
                 result, watch);
 
-            // 4. BIOS ------------------------------------------------------------
+            // 5. BIOS ------------------------------------------------------------
             Run("Win32_BIOS",
                 "SELECT Manufacturer, SMBIOSBIOSVersion FROM Win32_BIOS",
                 item =>
@@ -125,10 +172,10 @@ namespace AtlasPc.Collecting
                 },
                 result, watch);
 
-            // 5. Windows ---------------------------------------------------------
+            // 6. Windows ---------------------------------------------------------
             DateTime? wmiInstallDate = null;
             Run("Win32_OperatingSystem",
-                "SELECT Caption, Version, BuildNumber, OSArchitecture, InstallDate, TotalVisibleMemorySize " +
+                "SELECT Caption, Version, BuildNumber, OSArchitecture, InstallDate " +
                 "FROM Win32_OperatingSystem",
                 item =>
                 {
@@ -137,18 +184,11 @@ namespace AtlasPc.Collecting
                     if (computer.OsBuild == null) computer.OsBuild = Text(item, "BuildNumber");
                     if (computer.OsArch == null) computer.OsArch = Text(item, "OSArchitecture");
 
-                    if (!computer.RamUsableBytes.HasValue)
-                    {
-                        // TotalVisibleMemorySize est exprimé en kilo-octets.
-                        var visible = Number(item, "TotalVisibleMemorySize");
-                        if (visible.HasValue && visible.Value > 0) computer.RamUsableBytes = visible.Value * 1024L;
-                    }
-
                     if (!wmiInstallDate.HasValue) wmiInstallDate = ParseCimDate(Text(item, "InstallDate"));
                 },
                 result, watch);
 
-            // 6. Volumes fixes ---------------------------------------------------
+            // 7. Volumes fixes ---------------------------------------------------
             Run("Win32_LogicalDisk",
                 "SELECT DeviceID, VolumeName, FileSystem, Size, FreeSpace FROM Win32_LogicalDisk " +
                 "WHERE DriveType = 3",
@@ -171,7 +211,7 @@ namespace AtlasPc.Collecting
                 },
                 result, watch);
 
-            // 7. Disques physiques -----------------------------------------------
+            // 8. Disques physiques -----------------------------------------------
             Run("Win32_DiskDrive",
                 "SELECT DeviceID, Index, Model, Size FROM Win32_DiskDrive",
                 item =>
@@ -191,7 +231,7 @@ namespace AtlasPc.Collecting
                 },
                 result, watch);
 
-            // 8. Disque → partition ----------------------------------------------
+            // 9. Disque → partition ----------------------------------------------
             Run("Win32_DiskDriveToDiskPartition",
                 "SELECT Antecedent, Dependent FROM Win32_DiskDriveToDiskPartition",
                 item =>
@@ -206,7 +246,7 @@ namespace AtlasPc.Collecting
                 },
                 result, watch);
 
-            // 9. Partition → volume ----------------------------------------------
+            // 10. Partition → volume ---------------------------------------------
             Run("Win32_LogicalDiskToPartition",
                 "SELECT Antecedent, Dependent FROM Win32_LogicalDiskToPartition",
                 item =>

@@ -21,13 +21,17 @@ namespace AtlasPc.Models
         public int? CpuCores { get; set; }
         public int? CpuThreads { get; set; }
 
-        /// <summary>Mémoire physique installée (<c>Win32_ComputerSystem.TotalPhysicalMemory</c>).</summary>
+        /// <summary>
+        /// Mémoire physique installée : somme des capacités des modules
+        /// (<c>Win32_PhysicalMemory.Capacity</c>). C'est la valeur que Windows appelle
+        /// « mémoire physique installée » — 6,00 Go sur une machine de 6 Go.
+        /// </summary>
         public long? RamBytes { get; set; }
 
         /// <summary>
-        /// Mémoire utilisable par le système (<c>Win32_OperatingSystem.TotalVisibleMemorySize</c>).
+        /// Mémoire utilisable par Windows (<c>Win32_ComputerSystem.TotalPhysicalMemory</c>).
         /// Notion distincte de <see cref="RamBytes"/> : la réserve matérielle et le circuit
-        /// graphique intégré ne sont pas comptés dedans.
+        /// graphique intégré ne sont pas comptés dedans — 5,84 Go sur une machine de 6 Go.
         /// </summary>
         public long? RamUsableBytes { get; set; }
 
@@ -147,15 +151,21 @@ namespace AtlasPc.Models
         }
 
         /// <summary>
-        /// Mémoire utilisable, affichée à part. Si elle n'a pas été lue, on l'écrit :
-        /// aucune substitution par la mémoire installée.
+        /// Mémoire utilisable, affichée à part. Une valeur absente est écrite comme telle :
+        /// jamais de substitution d'une notion par l'autre.
         /// </summary>
         public string RamHint
         {
             get
             {
-                if (!RamUsableBytes.HasValue) return "mémoire utilisable non lue";
-                return "dont " + FormatMemory(RamUsableBytes) + " utilisables";
+                var usable = RamUsableBytes.HasValue && RamUsableBytes.Value > 0
+                    ? FormatMemory(RamUsableBytes)
+                    : null;
+
+                if (!RamBytes.HasValue && usable == null) return "modules mémoire non lus";
+                if (!RamBytes.HasValue) return usable + " utilisables · modules mémoire non lus";
+                if (usable == null) return "mémoire utilisable non lue";
+                return "dont " + usable + " utilisables";
             }
         }
 

@@ -213,7 +213,7 @@ parle à sa base*.
 
 | Élément | Fichier(s) |
 |---|---|
-| Collecte | `Collecting/ComputerCollector.cs` : **9 appels WMI** (7 classes + 2 associations) et la lecture du registre |
+| Collecte | `Collecting/ComputerCollector.cs` : **10 appels WMI** (8 classes + 2 associations) et la lecture du registre |
 | Modèles | `Models/ComputerInfo.cs`, `Models/VolumeInfo.cs` (taux d'occupation, niveaux de couleur) |
 | Écriture | `Data/InventoryStore.cs` : `SaveHardware`, `GetComputer`, `GetVolumes` |
 | Schéma | `Data/Schema.sql` v2 (+ `cpu_threads`, + `ram_usable_bytes`) et `Database.EnsureColumn` |
@@ -251,13 +251,14 @@ partielle — à lire », et le tableau de bord garde « Fichiers — » avec l'
 badge d'état affiche donc « Partiel », jamais « Complet ».
 
 **2. Mémoire installée ≠ mémoire utilisable.** Deux colonnes (`ram_bytes`,
-`ram_usable_bytes`), deux provenances (`TotalPhysicalMemory` en octets,
-`TotalVisibleMemorySize` en kilo-octets), deux textes. Aucun repli de l'une sur l'autre.
+`ram_usable_bytes`), deux provenances, deux textes. La provenance exacte a été corrigée au
+§ 2.7 : la mémoire installée vient de la **somme des modules**, pas de
+`TotalPhysicalMemory`.
 
-**3. Décompte des requêtes WMI clarifié.** Le plan annonçait sept requêtes ; il y en a
+**3. Décompte des requêtes WMI clarifié.** Le plan annonçait sept requêtes. Il y en avait
 **neuf** — sept classes plus les deux associations qui rattachent un volume à son disque
-physique. Le code, la note d'inventaire (`9/9 appels WMI`), `docs/07` § 7.1 et `docs/11`
-§ 3 emploient maintenant le même décompte.
+physique — puis **dix** après la correction de la mémoire (§ 2.7). Le code, la note
+d'inventaire, `docs/07` § 7.1 et `docs/11` § 3 emploient le même décompte.
 
 **4. Dates d'installation.** `Win32_OperatingSystem.InstallDate` (date CIM, convertie
 depuis l'heure locale vers UTC) désigne l'**image Windows courante** : dernière
@@ -299,7 +300,7 @@ collecte. Aucun Windows dans cet environnement.
 6. Revenir au **tableau de bord** : les cartes Processeur, Mémoire et Stockage sont
    renseignées ; Fichiers reste à `—`.
 7. Vérifier l'historique : la ligne est en **« Partiel »**, 0 fichier, 0 octet, avec une
-   note qui commence par « Matériel et Windows : 9/9 appels WMI ».
+   note qui commence par « Matériel et Windows : 10/10 appels WMI ».
 8. Fermer, rouvrir : la fiche Ordinateur est toujours là (elle vient de la base, aucune
    collecte n'est refaite au démarrage — la durée d'ouverture ne doit pas changer).
 
@@ -321,7 +322,7 @@ ComputerCollector.cs(269,68): error CS1503 : conversion impossible de System.Man
 ComputerCollector.cs(269,90): error CS1503 : conversion impossible de System.Management.EnumerationOptions en string
 ```
 
-**Ligne fautive** (`Run`, l'appel unique qui sert aux neuf requêtes) :
+**Ligne fautive** (`Run`, l'appel unique qui sert à toutes les requêtes) :
 
 ```csharp
 using (var searcher = new ManagementObjectSearcher(new ObjectQuery(wql), options))
@@ -350,7 +351,7 @@ private const string ScopePath = @"\\.\root\cimv2";
 using (var searcher = new ManagementObjectSearcher(ScopePath, wql, options))
 ```
 
-C'est un appel unique : les **neuf requêtes** passent par `Run`, elles sont donc toutes
+C'est un appel unique : toutes les requêtes passent par `Run`, elles sont donc toutes
 corrigées d'un coup. Aucun autre `ManagementObjectSearcher`, `ObjectQuery` ou
 `ManagementScope` n'existe dans le code (vérifié par recherche globale).
 
@@ -369,7 +370,48 @@ corrigées d'un coup. Aucun autre `ManagementObjectSearcher`, `ObjectQuery` ou
 appel : le reste du code de l'étape 2 (modèles, view-model, vue, magasin) passe donc la
 vérification de types. La compilation complète et la recette restent à faire sur le PC.
 
-### 2.7 Ce qui n'est pas encore là, volontairement
+### 2.7 Correction de la mémoire — installée, utilisable, et la dixième requête
+
+**Anomalie relevée sur le PC.** `msinfo32` annonce **6,00 Go installés** et **5,84 Go de
+mémoire physique totale** ; ATLAS PC affichait 5,8 Go **pour les deux**. La persistance,
+elle, était correcte.
+
+**Cause.** `Win32_ComputerSystem.TotalPhysicalMemory` ne renvoie pas la mémoire installée :
+Windows en a déjà déduit la réserve matérielle (circuit graphique intégré, mémoire réservée
+par le BIOS). Sur cette machine, 5,84 Go. La mémoire « utilisable » était lue dans
+`Win32_OperatingSystem.TotalVisibleMemorySize`, qui donne presque la même valeur — d'où
+deux fois 5,8 Go.
+
+**Correction.**
+
+| Notion | Avant | Après |
+|---|---|---|
+| installée (`ram_bytes`) | `TotalPhysicalMemory` (5,84 Go) | **somme de `Win32_PhysicalMemory.Capacity`** (6,00 Go) |
+| utilisable (`ram_usable_bytes`) | `TotalVisibleMemorySize` | `TotalPhysicalMemory` (5,84 Go, la valeur de `msinfo32`) |
+
+Une **dixième** requête WMI a donc été ajoutée : `SELECT Capacity FROM Win32_PhysicalMemory`.
+`TotalVisibleMemorySize` n'est plus lu — `docs/07` § 7.1 explique pourquoi les deux
+grandeurs de Windows ne coïncident pas.
+
+**Cas d'indisponibilité, tranché strictement.** Aucun module renvoyé, ou un seul module
+sans capacité lisible → **aucune valeur** n'est publiée : `—` dans la carte, « modules
+mémoire non lus » en dessous, et une ligne d'incident dans la note de l'inventaire. Une
+somme partielle serait un chiffre inventé. Si seule la mémoire utilisable manque, elle
+s'écrit « mémoire utilisable non lue » : jamais de repli sur l'installée.
+
+**Conséquences vérifiées.**
+
+| Point | Conséquence |
+|---|---|
+| Nombre d'appels | 9 → **10** ; `QueriesTotal` et la note suivent automatiquement |
+| Délais | 10 s par appel inchangé ; budget interne de 30 s inchangé — dix appels peuvent désormais dépasser le budget, les requêtes restantes sont alors **sautées et consignées** |
+| Erreurs | même `try/catch` par appel ; l'absence de modules est une ligne d'incident, pas une exception |
+| Schéma SQLite | **aucun changement** : `ram_bytes` et `ram_usable_bytes` existaient déjà, seule leur provenance change. Aucune migration, aucune colonne |
+| Inventaires existants | leurs valeurs gardent l'ancienne provenance ; **lancer un nouvel inventaire** affiche les bonnes. La vue montre le dernier inventaire |
+
+**Affichage attendu après correction** : « 6 Go » installés, « dont 5,8 Go utilisables ».
+
+### 2.8 Ce qui n'est pas encore là, volontairement
 
 - aucune lecture de fichiers : `roots_count` reste à 0, `scan_root` est vide ;
 - les rubriques Fichiers, Logiciels, Outils, Développement et Évolution restent des vues

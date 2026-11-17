@@ -30,7 +30,7 @@ Le **dossier** est complet et validé. Le **développement a commencé** :
 - **étape 1** (coquille et base de données) : **validée sur Windows 10 le 17/11** —
   compilation sans erreur ni avertissement, sept rubriques navigables, historique
   persistant ;
-- **étape 2** (matériel, Windows et volumes, 9 appels WMI en lecture seule) : écrite et
+- **étape 2** (matériel, Windows et volumes, 10 appels WMI en lecture seule) : écrite et
   poussée le 17/11, recette à faire.
 
 Le suivi, les décisions et les guides de recette sont dans

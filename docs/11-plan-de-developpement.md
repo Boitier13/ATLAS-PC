@@ -73,9 +73,9 @@ jalon est gelé au commit `2c15ca3`.
 
 | Livrable | Détail |
 |---|---|
-| `ComputerCollector` | **9 appels WMI** (7 classes + 2 associations) + registre, un `try/catch` par appel, 10 s par appel, budget 30 s |
+| `ComputerCollector` | **10 appels WMI** (8 classes + 2 associations) + registre, un `try/catch` par appel, 10 s par appel, budget 30 s |
 | Tables `computer`, `volume` | écriture d'un inventaire matériel, transaction unique |
-| Mémoire | **installée** et **utilisable** stockées et affichées séparément |
+| Mémoire | **installée** (somme des modules `Win32_PhysicalMemory`) et **utilisable** (`TotalPhysicalMemory`) stockées et affichées séparément |
 | Threads | `cpu_threads` affiché à part des cœurs physiques |
 | Vue **Ordinateur** | 6 cartes + tableau disques/volumes avec barre de remplissage colorée + note de collecte |
 | Valeurs absentes | `—` + info-bulle, jamais `0` |

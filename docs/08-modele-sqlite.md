@@ -110,8 +110,8 @@ CREATE TABLE computer (
     manufacturer  TEXT, model TEXT,
     cpu_name      TEXT, cpu_cores INTEGER,
     cpu_threads   INTEGER,                      -- ajouté en v2 : processeurs logiques
-    ram_bytes     INTEGER,                      -- mémoire installée
-    ram_usable_bytes INTEGER,                   -- ajouté en v2 : mémoire utilisable
+    ram_bytes     INTEGER,                      -- installée : somme des modules
+    ram_usable_bytes INTEGER,                   -- ajouté en v2 : utilisable (TotalPhysicalMemory)
     gpu_name      TEXT,
     bios_vendor   TEXT, bios_version TEXT,
     os_name       TEXT, os_version TEXT, os_build TEXT,

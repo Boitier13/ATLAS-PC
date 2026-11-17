@@ -376,32 +376,45 @@ renommage, déplacement ou suppression. Ce sont des exclusions **volontaires** d
 
 ### 7.1 Ordinateur (WMI, une classe)
 
-**Neuf appels WMI, pas sept** : sept classes de données plus deux associations. La
-confusion venait du dossier précédent, qui parlait de « sept requêtes » en comptant les
-deux associations comme une seule. Le décompte exact, celui du code :
+**Dix appels WMI** : huit classes de données plus deux associations. Le dossier précédent
+parlait de « sept requêtes » ; le décompte exact a été corrigé deux fois — d'abord parce
+que les deux associations avaient été comptées pour une (17/11), ensuite parce que la
+mémoire installée exige de lire les modules (17/11, seconde correction) :
 
 | # | Classe WMI | Donnée | Colonnes |
 |---|---|---|---|
-| 1 | `Win32_ComputerSystem` | fabricant, modèle, **mémoire installée** | `manufacturer`, `model`, `ram_bytes` |
+| 1 | `Win32_ComputerSystem` | fabricant, modèle, **mémoire utilisable** | `manufacturer`, `model`, `ram_usable_bytes` |
 | 2 | `Win32_Processor` | nom, cœurs physiques, processeurs logiques | `cpu_name`, `cpu_cores`, `cpu_threads` |
-| 3 | `Win32_VideoController` | cartes graphiques (noms concaténés) | `gpu_name` |
-| 4 | `Win32_BIOS` | éditeur, version | `bios_vendor`, `bios_version` |
-| 5 | `Win32_OperatingSystem` | nom, version, build, architecture, **mémoire utilisable**, date | `os_*` |
-| 6 | `Win32_LogicalDisk` (`DriveType = 3`) | volumes fixes | `volume.drive`, `label`, `file_system`, `total_bytes`, `free_bytes` |
-| 7 | `Win32_DiskDrive` | disques physiques | `volume.disk_index`, `disk_model`, `disk_size_bytes` |
-| 8 | `Win32_DiskDriveToDiskPartition` | association disque → partition | — |
-| 9 | `Win32_LogicalDiskToPartition` | association partition → volume | — |
+| 3 | `Win32_PhysicalMemory` | **modules : somme des capacités = mémoire installée** | `ram_bytes` |
+| 4 | `Win32_VideoController` | cartes graphiques (noms concaténés) | `gpu_name` |
+| 5 | `Win32_BIOS` | éditeur, version | `bios_vendor`, `bios_version` |
+| 6 | `Win32_OperatingSystem` | nom, version, build, architecture, date | `os_*` |
+| 7 | `Win32_LogicalDisk` (`DriveType = 3`) | volumes fixes | `volume.drive`, `label`, `file_system`, `total_bytes`, `free_bytes` |
+| 8 | `Win32_DiskDrive` | disques physiques | `volume.disk_index`, `disk_model`, `disk_size_bytes` |
+| 9 | `Win32_DiskDriveToDiskPartition` | association disque → partition | — |
+| 10 | `Win32_LogicalDiskToPartition` | association partition → volume | — |
 
-WMI ne relie pas directement un volume à son disque physique : les appels 8 et 9 servent
+WMI ne relie pas directement un volume à son disque physique : les appels 9 et 10 servent
 uniquement à remplir les trois colonnes `disk_*`. S'ils échouent, ces colonnes restent
 `NULL` et la vue affiche `—` ; le volume est quand même listé.
 
-**Deux notions de mémoire, jamais confondues.** `ram_bytes` est la mémoire **installée**
-(`TotalPhysicalMemory`) ; `ram_usable_bytes` est la mémoire **utilisable** par le système
-(`TotalVisibleMemorySize`, en kilo-octets, à multiplier par 1024). La seconde est
-inférieure à la première (réserve matérielle, circuit graphique intégré). Si la mémoire
-utilisable n'est pas lue, l'interface écrit « non lue » — elle ne la remplace jamais par
-la mémoire installée.
+**Deux notions de mémoire, jamais confondues — et deux sources distinctes.**
+
+| Notion | Source | Exemple (6 Go) |
+|---|---|---|
+| mémoire **installée** | **somme** de `Win32_PhysicalMemory.Capacity` | 6,00 Go |
+| mémoire **utilisable** | `Win32_ComputerSystem.TotalPhysicalMemory` | 5,84 Go |
+
+`TotalPhysicalMemory` **n'est pas** la mémoire installée : Windows y a déjà retiré la
+réserve matérielle (circuit graphique intégré, mémoire réservée par le BIOS). Sur la
+machine de recette, les deux valeurs valaient 5,84 Go et l'interface affichait deux fois la
+même chose — d'où la dixième requête, qui additionne les barrettes.
+
+**Règle d'absence, stricte.** Si `Win32_PhysicalMemory` ne renvoie aucun module, ou si un
+seul module n'a pas de capacité lisible, aucune valeur n'est publiée : la vue affiche `—`
+et la note de l'inventaire dit pourquoi. Une somme partielle serait un chiffre inventé.
+Même règle pour la mémoire utilisable : absente, elle s'écrit « non lue », jamais
+remplacée par la mémoire installée.
 
 **Deux registres, deux dates qui ne sont pas équivalentes.** `Win32_OperatingSystem.InstallDate`
 (date CIM, convertie en UTC) donne la date de l'**image Windows courante** : celle de la

@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS computer (
     cpu_name      TEXT,
     cpu_cores     INTEGER,              -- cœurs physiques
     cpu_threads   INTEGER,              -- processeurs logiques (affiché à part)
-    ram_bytes     INTEGER,              -- mémoire installée
-    ram_usable_bytes INTEGER,           -- mémoire utilisable : notion distincte
+    ram_bytes     INTEGER,              -- installée : somme des modules PhysicalMemory
+    ram_usable_bytes INTEGER,           -- utilisable : notion distincte
     gpu_name      TEXT,
     bios_vendor   TEXT,
     bios_version  TEXT,

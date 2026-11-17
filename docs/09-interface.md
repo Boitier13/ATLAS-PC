@@ -299,10 +299,14 @@ l'inventaire, pas l'état présent du disque.
 
 **Deux règles d'affichage de cette vue.**
 
-1. **Mémoire : deux notions, deux textes.** La carte s'appelle « Mémoire installée » et
-   affiche la capacité physique ; la ligne du dessous donne la mémoire **utilisable**.
-   Si celle-ci n'a pas été lue, on écrit « mémoire utilisable non lue » — la mémoire
-   installée ne la remplace jamais.
+1. **Mémoire : deux notions, deux textes, deux sources.** La carte s'appelle « Mémoire
+   installée » et affiche la **somme des modules** (`Win32_PhysicalMemory`) — 6 Go sur une
+   machine de 6 Go ; la ligne du dessous donne la mémoire **utilisable**
+   (`TotalPhysicalMemory`) — 5,8 Go. Les valeurs Windows correspondantes sont « mémoire
+   physique installée » et « mémoire physique totale » de `msinfo32`.
+   Si les modules ne sont pas lisibles, la carte affiche `—` et « modules mémoire non
+   lus » ; si c'est l'utilisable qui manque, on écrit « mémoire utilisable non lue ».
+   Aucune des deux ne remplace l'autre.
 2. **Date d'installation : une origine, écrite.** Sous les cartes, une ligne de détail
    donne la date et son origine (registre = installation d'origine ; WMI = dernière
    installation ou mise à niveau). Les deux dates ne sont jamais présentées comme
