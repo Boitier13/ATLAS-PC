@@ -115,16 +115,64 @@ namespace AtlasPc.Data
         }
 
         /// <summary>
-        /// Supprime les lignes restées au statut <c>running</c> : elles proviennent d'une
-        /// session interrompue brutalement et ne contiennent rien d'exploitable.
+        /// Clôt les inventaires restés au statut <c>running</c> : une session interrompue
+        /// brutalement (coupure, arrêt forcé) les a laissés ouverts.
+        ///
+        /// Ils ne sont <b>pas supprimés</b> : l'historique est conservé. Ils passent en
+        /// <c>cancelled</c>, avec une note, et leurs racines encore en cours aussi. C'est
+        /// la seule écriture juste : un parcours interrompu ne doit jamais pouvoir passer
+        /// pour un inventaire complet, ni servir de base à une conclusion sur des
+        /// fichiers manquants.
         /// </summary>
-        public int DeleteAbandoned()
+        /// <returns>Nombre d'inventaires ainsi clos.</returns>
+        public int AbandonRunning()
         {
-            using (var command = _connection.CreateCommand())
+            const string note =
+                "Session interrompue brutalement : inventaire clos sans fin de parcours. " +
+                "Aucune absence de fichier ne peut en être déduite.";
+
+            using (var transaction = _connection.BeginTransaction())
             {
-                command.CommandText = "DELETE FROM inventory WHERE status = @status;";
-                command.Parameters.AddWithValue("@status", InventoryStatus.Running);
-                return command.ExecuteNonQuery();
+                long closed;
+
+                using (var count = _connection.CreateCommand())
+                {
+                    count.Transaction = transaction;
+                    count.CommandText = "SELECT COUNT(*) FROM inventory WHERE status = @status;";
+                    count.Parameters.AddWithValue("@status", InventoryStatus.Running);
+                    closed = Convert.ToInt64(count.ExecuteScalar(), CultureInfo.InvariantCulture);
+                }
+
+                using (var roots = _connection.CreateCommand())
+                {
+                    roots.Transaction = transaction;
+                    roots.CommandText =
+                        "UPDATE scan_root SET status = @cancelled, finished_at = @now, error_message = @message " +
+                        "WHERE status = @running AND inventory_id IN " +
+                        "(SELECT id FROM inventory WHERE status = @running2);";
+                    roots.Parameters.AddWithValue("@cancelled", InventoryStatus.Cancelled);
+                    roots.Parameters.AddWithValue("@now", SqlDate.ToDb(DateTime.UtcNow));
+                    roots.Parameters.AddWithValue("@message", note);
+                    roots.Parameters.AddWithValue("@running", "running");
+                    roots.Parameters.AddWithValue("@running2", "running");
+                    roots.ExecuteNonQuery();
+                }
+
+                using (var inventories = _connection.CreateCommand())
+                {
+                    inventories.Transaction = transaction;
+                    inventories.CommandText =
+                        "UPDATE inventory SET status = @cancelled, finished_at = @now, " +
+                        "note = COALESCE(note || ' ', '') || @message WHERE status = @running;";
+                    inventories.Parameters.AddWithValue("@cancelled", InventoryStatus.Cancelled);
+                    inventories.Parameters.AddWithValue("@now", SqlDate.ToDb(DateTime.UtcNow));
+                    inventories.Parameters.AddWithValue("@message", note);
+                    inventories.Parameters.AddWithValue("@running", "running");
+                    inventories.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+                return (int)closed;
             }
         }
 

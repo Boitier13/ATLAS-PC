@@ -26,15 +26,17 @@ namespace AtlasPc
 
             var store = new InventoryStore(_database.Connection);
 
-            // Un inventaire laissé en "running" vient d'une session interrompue :
-            // il ne contient rien d'exploitable et ne doit pas apparaître dans l'historique.
+            // Un inventaire laissé en "running" vient d'une session interrompue : il est
+            // clos en "cancelled", jamais supprimé. L'historique est conservé, et un
+            // parcours inachevé ne peut pas passer pour complet.
             try
             {
-                store.DeleteAbandoned();
+                store.AbandonRunning();
             }
             catch (Exception)
             {
-                // Le nettoyage est un confort : son échec ne doit pas empêcher le démarrage.
+                // Sans conséquence sur le démarrage : l'inventaire restera visible en
+                // "running" et sera clos à la fois suivante.
             }
 
             var viewModel = new ShellViewModel(store, _database);

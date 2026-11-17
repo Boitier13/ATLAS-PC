@@ -91,7 +91,12 @@ valeur ou un `—` justifié.
 
 ---
 
-## 4. Étape 3A — Scan des fichiers et stockage (5 j)
+## 4. Étape 3A — Scan des fichiers et stockage (5 j) — **première partie écrite le 17/11**
+
+> **Découpage validé.** Première partie : stockage, moteur, tests — **sans interface**.
+> Deuxième partie, après compilation et tests sur le PC : dialogue de sélection des disques,
+> progression, annulation par bouton et par `Échap`, intégration au tableau de bord.
+> La première partie est écrite (journal, § 3) ; elle attend sa recette.
 
 | Livrable | Détail |
 |---|---|

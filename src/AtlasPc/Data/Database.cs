@@ -82,29 +82,62 @@ namespace AtlasPc.Data
             var folder = Path.GetDirectoryName(FilePath);
             if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
 
+            _connection = OpenConnection(16000, true);
+            CheckIntegrity();
+            EnsureSchema();
+        }
+
+        /// <summary>
+        /// Ouvre une <b>seconde</b> connexion sur le même fichier, pour le thread de scan.
+        /// <see cref="SQLiteConnection"/> n'est pas faite pour être partagée entre deux
+        /// threads : l'interface garde la sienne pour lire, le scan écrit avec la sienne.
+        /// Le mode WAL autorise un écrivain et des lecteurs simultanés.
+        /// </summary>
+        /// <param name="cacheKb">Taille du cache de cette connexion, en Ko.</param>
+        public SQLiteConnection CreateConnection(int cacheKb)
+        {
+            if (!File.Exists(FilePath))
+                throw new InvalidOperationException("La base n'est pas encore ouverte : impossible d'en ouvrir une seconde connexion.");
+
+            // Le mode journal est inscrit dans le fichier : la seconde connexion n'a pas
+            // à le reposer, ce qui évite une tentative de verrou inutile à l'ouverture.
+            return OpenConnection(cacheKb <= 0 ? 8000 : cacheKb, false);
+        }
+
+        private SQLiteConnection OpenConnection(int cacheKb, bool setJournalMode)
+        {
             var builder = new SQLiteConnectionStringBuilder
             {
                 DataSource = FilePath,
                 Version = 3,
                 ForeignKeys = true,
-                JournalMode = SQLiteJournalModeEnum.Wal,
+                JournalMode = setJournalMode ? SQLiteJournalModeEnum.Wal : SQLiteJournalModeEnum.Default,
                 SyncMode = SynchronizationModes.Normal,
                 FailIfMissing = false,
                 Pooling = false
             };
 
-            _connection = new SQLiteConnection(builder.ToString());
-            _connection.Open();
+            var connection = new SQLiteConnection(builder.ToString());
+            connection.Open();
 
-            ApplyPragmas();
-            CheckIntegrity();
-            EnsureSchema();
+            ExecutePragma(connection, "PRAGMA cache_size = -" +
+                cacheKb.ToString(CultureInfo.InvariantCulture) + ";");
+            ExecutePragma(connection, "PRAGMA temp_store = MEMORY;");
+
+            // Deux connexions, un seul écrivain à la fois : plutôt que d'échouer sur
+            // « database is locked », on attend jusqu'à 5 s.
+            ExecutePragma(connection, "PRAGMA busy_timeout = 5000;");
+
+            return connection;
         }
 
-        private void ApplyPragmas()
+        private static void ExecutePragma(SQLiteConnection connection, string sql)
         {
-            Execute("PRAGMA cache_size = -16000;");
-            Execute("PRAGMA temp_store = MEMORY;");
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = sql;
+                command.ExecuteNonQuery();
+            }
         }
 
         private void CheckIntegrity()

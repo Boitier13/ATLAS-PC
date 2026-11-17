@@ -33,6 +33,8 @@ Le **dossier** est complet et validé. Le **développement a commencé** :
 - **étape 2** (matériel, Windows et volumes, 10 appels WMI en lecture seule) :
   **validée sur Windows 10 le 17/11** — mémoire installée et utilisable distinctes,
   persistance confirmée.
+- **étape 3A, première partie** : stockage et moteur de parcours écrits le 17/11, avec
+  onze tests. Sans interface ; en attente de compilation et de recette sur le PC.
 
 Le suivi, les décisions et les guides de recette sont dans
 [`14-journal-de-developpement.md`](14-journal-de-developpement.md). L'étape 3A n'est pas

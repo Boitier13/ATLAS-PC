@@ -1,5 +1,9 @@
 # Livrable 7 — Arborescence du futur projet
 
+> **Révision du 17 novembre (3ᵉ).** Le dossier `tests/` et les fichiers du moteur
+> existent désormais réellement : les tailles ci-dessous sont celles du code écrit, pas des
+> estimations. Deux fichiers dépassent le repère de 260 lignes ; le motif est donné au § 5.
+>
 > **Révision du 17 novembre 2026 (2ᵉ).** La rubrique Fichiers devenant la fonction
 > centrale, l'arborescence gagne un dossier `Shell/` (ouvrir, copier), trois classes de
 > données et une séparation nette entre **navigation** et **recherche**. Toujours deux
@@ -172,6 +176,10 @@ navigation sont ce qui doit être le plus soigné, et donc aussi le plus découp
 Il est **conservé** parce qu'il teste des choses qui ne se vérifient pas à l'œil. Les
 tests de la rubrique Fichiers sont les plus nombreux : c'est la fonction centrale.
 
+**Il existe depuis l'étape 3A**, et sans aucun paquet NuGet : une console, des assertions,
+un code de sortie. **Onze tests** aujourd'hui — deux sur le stockage, neuf sur le parcours,
+écrits à l'étape 3A — et les quatorze autres au fil des étapes.
+
 | Test | Ce qu'il prouve |
 |---|---|
 | `Scanner_CalculeLesTotauxDeDossier` | les tailles remontées sont exactes |
@@ -213,11 +221,17 @@ de fichiers.
 |---|---|---|
 | `Data/Schema.sql` | les 10 tables et les index | ~130 lignes |
 | `Data/Database.cs` | ouverture, `PRAGMA`, schéma, version | ~120 lignes |
-| `Data/ScanStore.cs` | insertion par lots, transactions, clôture des racines, incidents d'annulation | ~200 lignes |
+| `Data/ScanStore.cs` | insertion par lots, transactions, clôture des racines, incidents d'annulation, règle du sous-arbre | **430 lignes** |
 | `Data/BrowseQueries.cs` | disques, enfants, contenu, fil d'Ariane | ~150 lignes |
 | `Data/SearchQueries.cs` | recherche, filtres, comptage, tri | ~220 lignes |
 | `Data/ComparisonQueries.cs` | 4 requêtes + lecture | ~200 lignes |
-| `Scanning/FileScanner.cs` | parcours d'une racine, totaux, progression, annulation | ~220 lignes |
+| `Scanning/FileScanner.cs` | parcours d'une racine par pile explicite, totaux, incidents, annulation, statuts | **525 lignes** |
+| `Scanning/BatchWriter.cs` | accumulation et vidage des lots (500 entrées ou 2 s) | 80 lignes |
+| `Models/ScanTarget.cs` | disque à parcourir, résultats, photo des compteurs | 75 lignes |
+| `Models/ScanBatch.cs` | lignes en attente, en structures | 31 lignes |
+| `Models/ScanIssue.cs` | natures d'incident, alignées sur le `CHECK` | 53 lignes |
+| `Models/ScanRootInfo.cs` | lignes `scan_root` et `folder` relues | 59 lignes |
+| `tests/AtlasPc.Tests/` | exécuteur, arborescences temporaires, 11 tests | ~900 lignes |
 | `Shell/ItemOpener.cs` | existence, ouverture, messages | ~80 lignes |
 | `ViewModels/FilesViewModel.cs` | arbre, sélection, fil d'Ariane, disques | ~230 lignes |
 | `ViewModels/SearchViewModel.cs` | saisie, filtres, pages, annulation | ~250 lignes |
@@ -225,6 +239,15 @@ de fichiers.
 
 Aucun fichier ne devrait dépasser ~260 lignes. Au-delà, c'est le signe qu'une
 responsabilité a été mal placée.
+
+**Deux écarts assumés, mesurés sur le code réel.** `FileScanner.cs` (525 lignes) et
+`ScanStore.cs` (430) dépassent ce repère. Les causes sont connues : les quatre règles
+ajoutées à la validation de l'étape 3A — pile explicite, une seule zone d'annulation,
+protection par sous-arbre, plafond de profondeur — et le commentaire qui explique chaque
+chose au lieu de la laisser deviner. Chaque fichier garde **une** responsabilité : le
+parcours pour l'un, le SQL du parcours pour l'autre. Si la gêne se confirme à la lecture,
+`ScanStore` se scinde proprement en écriture et lecture — c'est une opération de dix
+minutes, à faire seulement si le besoin apparaît.
 
 ---
 

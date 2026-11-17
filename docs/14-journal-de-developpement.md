@@ -14,7 +14,9 @@ machine cible**, et ce qu'il faut faire à la main.
 > Windows 10 a ensuite été **entièrement réussie** : l'étape 1 est **validée** (§ 1.6).
 > L'**étape 2** est écrite, corrigée puis **validée sur Windows 10 le 17/11** (§ 2.8) :
 > compilation, collecte WMI, affichage de la mémoire et persistance confirmés. Le code du
-> jalon est gelé au commit `4ffe89f`. L'**étape 3A** n'est pas commencée.
+> jalon est gelé au commit `4ffe89f`.
+> L'**étape 3A** est commencée : sa **première partie** — stockage et moteur, sans
+> interface — est écrite (§ 3). Elle attend sa compilation et ses tests sur le PC.
 
 ---
 
@@ -46,7 +48,7 @@ Total : 15 fichiers C#, 6 fichiers XAML, 1 fichier SQL, 2 fichiers de configurat
 |---|---|
 | **Le schéma complet est créé dès maintenant** | évite toute migration, que le dossier refuse ; une table vide ne coûte rien et le script est idempotent |
 | **Statut `running` ajouté** aux deux `CHECK` (`inventory`, `scan_root`) | une ligne doit exister **pendant** le parcours ; le schéma n'autorisait que des états finaux. `running` n'étant ni `complete` ni `partial`, il ne peut produire aucune suppression confirmée : la règle de comparaison n'est pas modifiée |
-| **Les lignes `running` sont supprimées au démarrage suivant** (`DeleteAbandoned`) | un inventaire interrompu par un arrêt brutal ne contient rien d'exploitable et ne doit pas apparaître dans l'historique |
+| **Les lignes `running` sont closes au démarrage suivant** (`DeleteAbandoned`, devenu `AbandonRunning` à l'étape 3A) | un inventaire interrompu ne doit pas apparaître comme en cours. Depuis l'étape 3A il n'est plus supprimé mais marqué `cancelled` : l'historique est conservé (voir § 3.3) |
 | **Bouton « Lancer un inventaire » = simulation explicite** | à l'étape 1, aucun disque n'est lu. La ligne est créée, puis clôturée en `cancelled` avec la note « Simulation de l'étape 1 : aucun disque n'a été parcouru ». Aucune donnée fausse ne peut donc être prise pour un vrai inventaire |
 | **`Shell/Dialogs.cs`** plutôt que des `MessageBox` dans les ViewModels | la règle « pas de WPF dans les ViewModels » reste tenue ; `Shell` devient la seule exception, et la règle du livrable 4 a été mise à jour |
 | **Un seul `PlaceholderView` pour les six rubriques à venir** | six vues vides identiques seraient du bruit ; chacune sera écrite à son étape et le remplacement disparaîtra à l'étape 5 |
@@ -169,9 +171,10 @@ Aucune ligne de l'historique ne peut donc être prise pour un inventaire réel.
 
 **Ce que le point 8 démontre.** Trois mécanismes sont validés d'un coup : le chemin de la
 base, l'idempotence du script de schéma (aucune erreur au second démarrage), et le
-nettoyage `DeleteAbandoned` — qui supprime les lignes `running` mais **conserve** les
-lignes `cancelled`. C'est le comportement voulu : un inventaire annulé par l'utilisateur
-est un fait historique, pas un déchet.
+nettoyage des lignes `running` — qui les écarte du démarrage mais **conserve** les lignes
+`cancelled`. C'est le comportement voulu : un inventaire annulé par l'utilisateur est un
+fait historique, pas un déchet. Depuis l'étape 3A ce nettoyage ne supprime plus rien
+(§ 3.3).
 
 **Ce que le point 9 démontre.** Une base neuve pèse 112 Ko alors qu'elle ne contient que
 des lignes d'inventaire. C'est normal et attendu : les 10 tables et 14 index occupent
@@ -440,3 +443,146 @@ compilation), `4ffe89f` (correctif de la mémoire).
   une colonne voisine, une barre seule suffit. Ce contrôle servira au panneau
   « Répartition par dossier » du tableau de bord (étape 3B), avec libellé + barre + valeur
   sur une même ligne.
+
+---
+
+## Étape 3A — Le moteur de fichiers — **première partie écrite le 17/11**
+
+Découpage validé : **deux blocs**. Ce premier bloc livre le stockage et le moteur, **sans
+toucher à l'interface** : rien ne change à l'écran, et aucun parcours ne peut encore être
+déclenché par l'utilisateur. Le second bloc apportera le dialogue de sélection des disques,
+les compteurs, l'annulation et l'intégration.
+
+### 3.1 Ce qui a été écrit
+
+| Fichier | Rôle | Lignes |
+|---|---|---|
+| `Scanning/FileScanner.cs` | parcours par pile explicite, totaux, incidents, annulation, statuts par racine | 500 |
+| `Scanning/BatchWriter.cs` | lots de 500 entrées ou 2 s, vidage à l'annulation | 80 |
+| `Data/ScanStore.cs` | tout le SQL du scan, instructions préparées, règle du sous-arbre | 430 |
+| `Models/ScanTarget.cs` | disque à parcourir, résultat par racine, résultat global, photo des compteurs | 75 |
+| `Models/ScanBatch.cs` | lignes en attente (structures, pas d'objets) | 31 |
+| `Models/ScanIssue.cs` | natures d'incident, alignées sur le `CHECK` du schéma | 53 |
+| `Models/ScanRootInfo.cs` | lignes `scan_root` et `folder` relues | 59 |
+| `tests/AtlasPc.Tests/` | projet console, **2 + 9 = 11 tests**, aucun paquet NuGet | 900 |
+
+Le schéma **n'a pas bougé** : les tables `folder`, `file` et `scan_issue` existaient déjà
+depuis l'étape 1, avec leurs index. Aucune migration, aucune base existante invalidée.
+
+### 3.2 Les quatre points précisés avant d'écrire
+
+**1. Une pile explicite, pas de récursion.** La profondeur d'une arborescence est une
+donnée du disque, pas une garantie du programme : une chaîne de dossiers pathologique ferait
+déborder la pile d'appels et tuer le processus. Le parcours utilise donc une `List<Frame>`
+comme pile — un contexte par dossier ouvert, avec l'index de l'enfant suivant. Mémoire
+occupée : un contexte par niveau, jamais l'arborescence entière. Plafond de sécurité à
+**1 024 niveaux** : au-delà, le dossier reçoit une ligne `scan_issue` de nature
+`path_too_long` et n'est pas parcouru — jamais un oubli silencieux.
+
+**2. L'ordre d'écriture ne viole aucune contrainte — vérifié, pas supposé.** Un dossier est
+écrit après ses enfants (c'est ce qui donne sa taille récursive). Contrôle fait dans
+`Schema.sql` :
+
+| Question | Réponse |
+|---|---|
+| `file` a-t-elle une clé étrangère vers `folder` ? | **non** — le lien se fait par `folder_path`, en texte |
+| `folder` porte-t-elle un `UNIQUE` ou un `CHECK` ? | **non** — seule clé étrangère : `inventory(id)` |
+| L'ordre « fichiers puis dossiers » est-il accepté, clés étrangères actives ? | **oui**, vérifié en exécutant l'insertion contre le vrai schéma |
+
+La seule contrainte à respecter est donc celle qui existait déjà : la ligne `inventory`
+avant tout le reste, et la ligne `scan_root` avant le parcours de son disque.
+
+**3. À l'annulation, une seule ligne, à l'endroit exact.** Le moteur écrit **une**
+`scan_issue` de nature `cancelled_before`, sur le dossier où le parcours s'est arrêté. Il
+n'inscrit pas les dossiers restants : il ne les a pas lus, les nommer serait une
+affirmation. La protection ne vient pas de là mais du statut de la racine (`cancelled`) et
+de la règle du sous-arbre. Les dossiers encore ouverts sont écrits avec leurs **totaux
+partiels**, pour qu'aucune ligne de fichier ne désigne un dossier absent de la table.
+
+**4. La protection des comparaisons, par sous-arbre.** Un incident sur `C:\a\b` protège
+`C:\a\b` et tout ce qu'il contient, **et rien d'autre** : ni `C:\a\bc`, ni `C:\a` (le parent,
+lui, a été lu), ni un voisin. La comparaison porte sur des **segments de chemin**, jamais
+sur des préfixes de chaîne : un dossier nommé `50%` ne doit pas devenir un motif. La règle
+est écrite en SQL (`ScanStore.IsProtected`) et **testée dès maintenant**, pour que l'étape 5
+n'ait pas à la réinventer.
+
+### 3.3 Deux changements dans l'existant, et pourquoi
+
+**a) Une seconde connexion SQLite.** `SQLiteConnection` ne doit pas servir deux threads à
+la fois. Le scan écrit avec **sa** connexion, l'interface garde la sienne pour lire ; le
+mode WAL autorise un écrivain et des lecteurs simultanés. `Database` gagne
+`CreateConnection(cacheKb)` : 8 Mo de cache pour le scan (16 Mo pour l'interface, on ne
+double pas), `busy_timeout` à 5 s pour attendre le verrou plutôt que d'échouer sur
+« database is locked », et le mode journal n'est **pas** reposé sur la seconde connexion —
+il est inscrit dans le fichier, et le reposer ne ferait qu'ajouter une tentative de verrou à
+l'ouverture. La toute première chose que fait le projet de tests est de vérifier cette
+coexistence (`Stock_DeuxConnexionsSimultanees`).
+
+**b) `DeleteAbandoned` devient `AbandonRunning` : on ne supprime plus, on clôt.** C'est une
+conséquence directe de la consigne « conserver intégralement les inventaires existants ». Un
+inventaire resté en `running` vient d'une session tuée. Il était supprimé au démarrage
+suivant ; il est désormais **marqué `cancelled`**, avec une note, et ses racines aussi. Trois
+raisons : l'historique est conservé ; un parcours inachevé ne peut pas passer pour complet ;
+et la suppression en cascade de plusieurs centaines de milliers de lignes n'allonge plus le
+démarrage. **À valider** : si vous préférez l'ancien comportement, c'est une méthode à
+rétablir.
+
+### 3.4 Ce qui a été vérifié ici (Linux)
+
+Aucun compilateur C# sur cette machine : les contrôles sont statiques et documentaires.
+
+| Contrôle | Résultat |
+|---|---|
+| Les **20 instructions SQL** du code, exécutées contre le vrai `Schema.sql` (SQLite) | **0 refusée** |
+| Ordre « fichier avant son dossier », clés étrangères actives | accepté — confirme le point 2 |
+| Règle du sous-arbre, 10 cas (dont `%`, `_`, casse, préfixe commun) | **10/10 conformes** |
+| Suppression d'un inventaire : cascade sur `file`, `folder`, `scan_issue`, `scan_root` | 4 tables vidées, 0 orpheline |
+| Équilibre accolades/parenthèses des **32 fichiers C#** | conformes |
+| Constructions C# 8+ dans un projet `LangVersion 7.3` | aucune |
+| Paramètres SQL déclarés vs utilisés | 34/34 |
+
+**Non vérifié ici, et c'est le but de la recette :** la compilation, l'exécution des 11
+tests, et le comportement réel de `EnumerateFileSystemInfos` sur ce PC.
+
+### 3.5 Recette sur le PC — première partie
+
+1. Ouvrir `ATLAS-PC.sln`. La solution contient maintenant **deux projets** : `AtlasPc` et
+   `AtlasPc.Tests`.
+2. **Générer la solution** (Ctrl+Maj+B). Attendu : `0 avertissement, 0 erreur`.
+   Si MSBuild signale une erreur, me la transmettre telle quelle : je corrige.
+3. Clic droit sur `AtlasPc.Tests` → **Définir comme projet de démarrage**, puis F5.
+   Une console s'ouvre. Attendu, dans cet ordre :
+   - `Stock_DeuxConnexionsSimultanees` **OK** — c'est le point D2, la vérification qui
+     conditionne tout le reste ;
+   - `Stock_EcritureParLotsEtRelecture` **OK** ;
+   - les neuf tests du moteur **OK** ;
+   - dernière ligne : `11 réussis, 0 échoués, 0 ignorés` — sauf les deux tests « IGNORÉ »
+     expliqués au point suivant.
+4. **Deux tests peuvent être « IGNORÉ »**, et c'est prévu :
+   - `Scanner_SauteLesPointsDeReparse` si la machine refuse `mklink /J` ;
+   - `Scanner_EnregistreLesDossiersIllisibles` si `icacls` refuse de poser le refus d'accès.
+   Dans ce cas, le motif est affiché. Ce n'est pas une réussite : dites-le-moi.
+5. **Relancer l'application** (`AtlasPc` comme projet de démarrage) : elle doit se comporter
+   **exactement comme après l'étape 2**. L'interface n'a pas été touchée : le bouton
+   « Lancer un inventaire » collecte toujours le matériel et clôt en « Partiel », en
+   annonçant que les fichiers ne sont pas inventoriés. Si quelque chose a changé à l'écran,
+   c'est un défaut.
+6. Vérifier que l'historique est intact : les inventaires précédents sont toujours là, avec
+   leurs dates, et aucun n'a été supprimé.
+
+**Ce que j'attends en retour :** le texte de la console (copier-coller), et le résultat de
+la compilation. C'est ce qui autorise la seconde partie.
+
+### 3.6 Ce qui n'est pas encore là, volontairement
+
+- **Aucune interface** : ni dialogue de sélection des disques, ni compteurs, ni `Échap`.
+  Ce sera la seconde partie, et rien ne peut déclencher un parcours avant elle.
+- **`ProjectDetector`** (marqueurs `package.json`, `requirements.txt`, `.git`) : reporté à
+  la seconde partie, avec le branchement dans la boucle. Son absence est sans effet
+  aujourd'hui — aucun parcours réel n'a lieu — et il doit être en place **avant** le premier
+  vrai scan, puisque le repérage se fait pendant l'énumération, sans seconde lecture.
+- **Aucun raccordement au tableau de bord ni à l'historique** : la note d'inventaire dit
+  toujours que les fichiers ne sont pas inventoriés, ce qui reste exact.
+- **Pas encore mesuré** : durée d'un parcours réel, pic mémoire, taille de la base pour
+  400 000 fichiers. Ces trois chiffres appartiennent à la seconde partie, quand un disque
+  entier pourra être parcouru.

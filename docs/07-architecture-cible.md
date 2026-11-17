@@ -144,9 +144,14 @@ seule classe** (`Scanning/NativeDirectoryEnumerator.cs`), sans toucher au reste.
 
 ### 5.2 Parcours
 
-- profondeur d'abord, **un seul thread**, en récursion (quelques dizaines de niveaux) ;
+- profondeur d'abord, **un seul thread**, avec une **pile explicite** — aucune récursion :
+  la profondeur est une donnée du disque, pas une garantie du programme, et un dépassement
+  de pile tue le processus. Plafond de sécurité à **1 024 niveaux** : au-delà, le dossier
+  est signalé (`path_too_long`) au lieu d'être analysé ;
 - à chaque dossier rencontré : insertion d'une ligne `folder` **après** traitement des
-  enfants, pour connaître sa taille totale ;
+  enfants, pour connaître sa taille totale. Vérifié dans le schéma : `file` n'a **aucune**
+  clé étrangère vers `folder` (le lien se fait par le chemin), et `folder` ne porte ni
+  `UNIQUE` ni `CHECK` — cet ordre ne viole donc aucune contrainte ;
 - à chaque fichier : ajout au lot courant ;
 - lot écrit en base toutes les **500 entrées** ou toutes les **2 secondes** ;
 - **un disque après l'autre** : l'interface peut déjà explorer `C:` pendant que `D:`
@@ -185,10 +190,12 @@ rapide.
 - l'inventaire est `complete` seulement si toutes ses racines le sont ;
 - un dossier illisible produit **une** ligne `scan_issue` (une par dossier) et
   n'interrompt rien ;
-- **à l'annulation** : le lot en cours est écrit, un `scan_issue` de nature
-  `cancelled_before` est enregistré pour le dossier en cours et pour les dossiers restants,
-  puis la racine passe en `cancelled`. Ainsi, même interrompu, un scan ne peut pas faire
-  croire à des fichiers disparus.
+- **à l'annulation** : le lot en cours est écrit, **une seule** ligne `cancelled_before`
+  est enregistrée — à l'endroit exact où le parcours s'est arrêté — puis la racine passe en
+  `cancelled`. On n'inscrit pas les dossiers restants : on ne les a pas lus, les nommer
+  serait une affirmation. Les dossiers encore ouverts sont écrits avec leurs totaux
+  partiels, pour qu'aucune ligne de fichier ne désigne un dossier absent. Ainsi, même
+  interrompu, un scan ne peut pas faire croire à des fichiers disparus ;
 
 ### 5.5 Choix assumés, avec leur conséquence
 
@@ -201,6 +208,31 @@ rapide.
 | pas d'index plein texte en V1 | la recherche par sous-chaîne parcourt l'index des noms (voir § 6.4) |
 
 Ces points sont **documentés dans l'application**, dans la rubrique Fichiers, pas cachés.
+
+### 5.6 La protection des comparaisons : la règle du sous-arbre
+
+Une ligne `scan_issue` ne protège pas « le disque » ni « un peu autour » : elle protège
+**son chemin et tout son sous-arbre**, et rien d'autre.
+
+| Chemin testé | Incident sur `C:\a\b` | Protégé ? |
+|---|---|---|
+| `C:\a\b` | lui-même | **oui** |
+| `C:\a\b` + `\` | lui-même | **oui** |
+| `C:\a\b\c\d` | descendant | **oui** |
+| `C:\a\bc` | commence pareil, pas descendant | non |
+| `C:\a` | parent, lui, a été lu | non |
+| `C:\autre` | voisin | non |
+
+Deux règles s'ajoutent, et une seule suffit à bloquer :
+
+1. **la racine** : si le disque est `cancelled`, `inaccessible` ou `running`, tout le disque
+   est protégé — la comparaison ne conclut rien ;
+2. **le sous-arbre** : sinon, un incident protège son chemin et ses descendants.
+
+Le test compare des segments, **jamais des préfixes de chaîne** : un dossier nommé `50%`
+ne doit pas se transformer en motif, et `C:\a\bc` n'est pas dans `C:\a\b`. La règle est
+écrite en SQL dans `ScanStore.IsProtected` et testée dès l'étape 3A, pour que l'étape 5
+n'ait pas à la réinventer.
 
 ---
 

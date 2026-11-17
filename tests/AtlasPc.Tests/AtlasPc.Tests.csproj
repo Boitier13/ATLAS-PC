@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests du moteur, sans aucun paquet NuGet : les assertions tiennent en une page.
+    Exécutable console : le lancer renvoie 0 si tout passe, 1 sinon. Aucun faux
+    système de fichiers, aucune doublure : de vrais dossiers temporaires et une
+    vraie base SQLite temporaire.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>AtlasPc.Tests</RootNamespace>
+    <AssemblyName>AtlasPc.Tests</AssemblyName>
+    <Platforms>AnyCPU</Platforms>
+    <NeutralLanguage>fr-FR</NeutralLanguage>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AtlasPc\AtlasPc.csproj" />
+  </ItemGroup>
+
+</Project>
