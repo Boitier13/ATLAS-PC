@@ -1,7 +1,8 @@
-# Livrable 7 — Arborescence proposée du futur code source
+# Livrable 7 — Arborescence du futur projet
 
-> Ce document décrit une **organisation**, pas du code. Aucun fichier source n'est
-> créé à ce stade ; les noms de fichiers ci-dessous sont des emplacements prévus.
+> **Révision du 17 novembre 2026.** Un seul projet applicatif au lieu de six, aucune
+> couche d'abstraction, un projet de tests unique conservé parce qu'il apporte un
+> avantage réel.
 
 ---
 
@@ -10,306 +11,201 @@
 ```
 ATLAS-PC/
 ├─ ATLAS-PC.sln
-├─ Directory.Build.props              propriétés communes (LangVersion, nullable, versions)
-├─ .editorconfig                      style, encodage UTF-8, fins de ligne
+├─ .editorconfig
 ├─ .gitignore
-├─ README.md                          présentation, capture, démarrage rapide
-├─ LICENSE                            MIT (ou Apache-2.0) — à figer avant le premier commit
-├─ THIRD-PARTY-NOTICES.md             licences des dépendances livrées
+├─ README.md
+├─ LICENSE                     MIT
 ├─ CHANGELOG.md
-│
-├─ docs/                              ce dossier technique (déjà présent)
-│  ├─ 00-lisez-moi.md … 12-risques-et-limites.md
-│  └─ 13-registre-inspiration.md       à créer au démarrage du développement
-│
+├─ docs/                       ce dossier
 ├─ assets/
 │  ├─ maquette-atlas-pc.png
-│  ├─ app.ico                         icône multi-résolutions
-│  └─ fonts/                          (vide : Segoe UI est fournie par Windows)
-│
+│  └─ app.ico
 ├─ src/
-│  ├─ Atlas.Core/                     domaine et contrats — aucune dépendance
-│  ├─ Atlas.Data/                     SQLite : schéma, repositories, comparaison
-│  ├─ Atlas.Scan/                     moteur de parcours de fichiers
-│  ├─ Atlas.Collectors/               matériel, OS, logiciels, outils, projets
-│  ├─ Atlas.Reports/                  HTML, CSV, JSON
-│  └─ Atlas.App/                      application WPF (point d'entrée)
-│
-├─ tests/
-│  ├─ Atlas.Core.Tests/
-│  ├─ Atlas.Data.Tests/
-│  ├─ Atlas.Scan.Tests/
-│  ├─ Atlas.Collectors.Tests/
-│  └─ Atlas.Reports.Tests/
-│
-├─ tools/
-│  ├─ Atlas.DevHarness/               console de développement (pas livrée)
-│  └─ build/                          scripts de publication
-│
-└─ .github/workflows/
-   ├─ build.yml
-   └─ test.yml
+│  └─ AtlasPc/
+└─ tests/
+   └─ AtlasPc.Tests/
 ```
+
+Deux projets, pas plus. Pas de `Directory.Build.props` : deux fichiers `.csproj`
+suffisent.
 
 ---
 
-## 2. Les projets
-
-| Projet | Type | Cible | Références | Rôle |
-|---|---|---|---|---|
-| `Atlas.Core` | bibliothèque | `net48` (+ `net10.0-windows` en second) | **aucune** | modèles, contrats, règles de portée et de comparaison, énumérations de statut |
-| `Atlas.Data` | bibliothèque | `net48` | Core, `Microsoft.Data.Sqlite` | schéma, migrations, écriture par lots, requêtes de comparaison |
-| `Atlas.Scan` | bibliothèque | `net48` | Core | énumération Win32, pipeline, progression, annulation |
-| `Atlas.Collectors` | bibliothèque | `net48` | Core, `System.Management` | matériel (WMI), registre, outils, projets |
-| `Atlas.Reports` | bibliothèque | `net48` | Core | génération HTML/CSV/JSON |
-| `Atlas.App` | application WPF | `net48` | **tous** | vues, view-models, services de présentation |
-| `Atlas.*.Tests` | test | `net48` | projet testé | tests unitaires (NUnit ou xUnit) |
-
-**Pourquoi `net48` et pas `netstandard2.0` pour les bibliothèques** : `Atlas.Scan`
-et `Atlas.Collectors` utilisent des API Windows (P/Invoke, `System.Management`,
-registre) qui n'existent pas en `netstandard2.0`. `Atlas.Core` et `Atlas.Reports`
-pourraient être `netstandard2.0` ; les aligner sur `net48` simplifie et évite les
-mauvaises surprises de résolution d'assemblies. La multi-cible se limite à
-`net48;net10.0-windows` pour `Core`, `Data`, `Reports` — les deux projets Windows
-restant spécifiques.
-
----
-
-## 3. Détail des dossiers
-
-### 3.1 `src/Atlas.Core/`
+## 2. Le projet applicatif `src/AtlasPc/`
 
 ```
-Atlas.Core/
-├─ Inventories/
-│  ├─ Inventory.cs                 racine : id, dates, statut, compteurs
-│  ├─ InventoryStatus.cs           enum Complete | Partial | Cancelled | Failed
-│  ├─ InventoryScope.cs            volume ou dossier analysé
-│  └─ InventorySummary.cs          agrégats de synthèse (pour le tableau de bord)
-├─ Hardware/
-│  ├─ ComputerInfo.cs  CpuInfo.cs  MemoryModuleInfo.cs
-│  ├─ GpuInfo.cs       DiskInfo.cs PartitionInfo.cs VolumeInfo.cs
-│  ├─ BiosInfo.cs      OsInfo.cs
-│  └─ FieldState.cs                Available | Unavailable | Approx | Inferred | Redacted
-├─ Software/
-│  ├─ SoftwareItem.cs              nom, version, éditeur, source, confiance
-│  └─ SoftwareSource.cs            enum RegistryMsi | RegistryExe | Store | Portable | Shortcut
-├─ Tools/
-│  ├─ DevTool.cs                   kind, chemin, version, méthode, statut
-│  └─ DevToolKind.cs               enum Python | Pip | Node | Npm | Git | Tesseract
-├─ Files/
-│  ├─ FolderRecord.cs  FileRecord.cs
-│  ├─ FileAttributesFlags.cs       miroir lisible des attributs Win32 utiles
-│  └─ ScanError.cs                 chemin, code, message, occurrences
-├─ Projects/
-│  ├─ ProjectRecord.cs  ProjectKind.cs
-│  └─ ProjectMarker.cs             table des marqueurs et types associés
-├─ Comparison/
-│  ├─ InventoryComparison.cs       résultat complet
-│  ├─ FileChange.cs                Ajouté | Disparu | Modifié
-│  ├─ SoftwareChange.cs  ToolChange.cs
-│  └─ StorageDelta.cs
-├─ Contracts/
-│  ├─ ICollector.cs                CollectAsync(contexte, jeton) → résultat + statut
-│  ├─ IScanEngine.cs               ScanAsync(portée, progression, jeton) → résumé
-│  ├─ IInventoryRepository.cs      création, écriture, lecture, comparaison
-│  ├─ IReportWriter.cs             HTML | CSV | JSON
-│  └─ IProgressReporter.cs         abstraction de la progression (testable)
-└─ Ports/
-   └─ IFileSystem.cs, IRegistryReader.cs, IWmiQuery.cs, IProcessRunner.cs
-```
-
-Les **ports** (`IFileSystem`, `IRegistryReader`, `IWmiQuery`, `IProcessRunner`) sont le
-point clé de la testabilité : ils permettent de tester la logique de collecte et de
-scan sans toucher au disque, au registre ni à WMI. Les implémentations réelles vivent
-dans `Atlas.Scan` et `Atlas.Collectors`.
-
-### 3.2 `src/Atlas.Scan/`
-
-```
-Atlas.Scan/
-├─ Native/
-│  ├─ Kernel32.cs                  FindFirstFileExW, GetDiskFreeSpace, GetCompressedFileSize
-│  ├─ SafeFindHandle.cs            SafeHandleZeroOrMinusOneIsInvalid
-│  ├─ Win32FindData.cs             structures avec CharSet Unicode
-│  └─ Win32Error.cs                codes + traduction en messages
-├─ PathHandling/
-│  ├─ LongPath.cs                  préfixes \\?\ et \\?\UNC\, concaténation sûre
-│  └─ PathKey.cs                   normalisation + FNV-1a 64 bits (path_hash)
-├─ Engine/
-│  ├─ DirectoryScanEngine.cs       orchestration : pile, lots, progression, annulation
-│  ├─ DirectoryEnumeration.cs      un dossier → entrées (testable via IFileSystem)
-│  ├─ ScanOptions.cs               travailleurs (1-2), mode discret, exclusions
-│  ├─ ScanProgress.cs              compteurs + chemin courant
-│  └─ BatchWriter.cs               accumulation et envoi des lots à IInventoryRepository
-└─ Projects/
-   └─ ProjectDetector.cs           détection des marqueurs pendant le parcours
-```
-
-### 3.3 `src/Atlas.Collectors/`
-
-```
-Atlas.Collectors/
-├─ Wmi/
-│  ├─ WmiReader.cs                 implémentation de IWmiQuery avec délai par requête
-│  └─ WmiResults.cs                objets uniformes (statut, message, durée)
-├─ Hardware/
-│  ├─ ComputerCollector.cs  CpuCollector.cs  MemoryCollector.cs
-│  ├─ GpuCollector.cs       StorageCollector.cs  BiosCollector.cs
-│  └─ OsCollector.cs
-├─ Software/
-│  ├─ RegistrySoftwareCollector.cs   3 ruches, filtrage documenté
-│  └─ PortableSoftwareCollector.cs   heuristique, confiance faible
-├─ Tools/
-│  ├─ ToolLocator.cs                 PATH + dossiers connus
-│  └─ ToolVersionReader.cs           FileVersionInfo → fichier → commande (3 s)
-├─ Registry/
-│  └─ RegistryReader.cs              implémentation de IRegistryReader (lecture seule)
-└─ CollectorsPipeline.cs             enchaînement ordonné + arrêt propre sur échec
-```
-
-### 3.4 `src/Atlas.Data/`
-
-```
-Atlas.Data/
-├─ Sqlite/
-│  ├─ SqliteConnectionFactory.cs    ouvertures, PRAGMA, chemin %LOCALAPPDATA%
-│  ├─ SqliteInventoryRepository.cs  implémentation de IInventoryRepository
-│  └─ SchemaMigrator.cs             version → application des scripts
-├─ Scripts/
-│  ├─ 001-initial.sql
-│  ├─ 002-indexes.sql
-│  └─ ...                           scripts embarqués en ressources
-├─ Writers/
-│  ├─ FolderBatchWriter.cs          insertion par lots, calcul des totaux
-│  ├─ FileBatchWriter.cs
-│  └─ StatsWriter.cs                agrégats précalculés
-├─ Queries/
-│  ├─ ComparisonQueries.cs          les requêtes du livrable 5
-│  ├─ DashboardQueries.cs
-│  └─ RetentionService.cs           allègement et purge
-└─ Maintenance/
-   └─ DatabaseHealth.cs             intégrité, taille, VACUUM/incremental
-```
-
-### 3.5 `src/Atlas.Reports/`
-
-```
-Atlas.Reports/
-├─ Html/
-│  ├─ HtmlReportWriter.cs
-│  ├─ Templates/report.html         gabarit unique, jetons remplacés
-│  └─ Assets/report.css             CSS embarqué (aucune ressource externe)
-├─ Csv/
-│  └─ CsvReportWriter.cs            un fichier par section + un pour les fichiers
-├─ Json/
-│  └─ JsonReportWriter.cs           writer maison, schéma versionné
-└─ Masking/
-   └─ PathMasker.cs                 C:\Users\<nom> → C:\Users\%USER%
-```
-
-### 3.6 `src/Atlas.App/`
-
-```
-Atlas.App/
-├─ App.xaml / App.xaml.cs           démarrage, gestion globale des erreurs
-├─ app.manifest                     asInvoker, PerMonitorV2, longPathAware
-├─ Shell/
-│  ├─ MainWindow.xaml               sidebar + barre supérieure + zone de contenu
-│  ├─ NavigationService.cs
-│  └─ ShellViewModel.cs
-├─ Views/
-│  ├─ DashboardView.xaml            Tableau de bord
-│  ├─ ComputerView.xaml             Ordinateur
-│  ├─ FilesView.xaml                Fichiers
-│  ├─ SoftwareView.xaml             Logiciels
-│  ├─ ToolsView.xaml                Outils
-│  ├─ DevelopmentView.xaml          Développement
-│  ├─ EvolutionView.xaml            Évolution
-│  └─ ReportsView.xaml              Rapports
+AtlasPc/
+├─ AtlasPc.csproj              net48, WinExe, UseWPF
+├─ app.config                  redirection de binding SQLite + chemins longs
+├─ app.manifest                asInvoker, PerMonitorV2, longPathAware
+├─ App.xaml / App.xaml.cs      démarrage, gestion globale des exceptions
+│
+├─ Models/
+│  ├─ Inventory.cs             id, dates, statut, racine, compteurs
+│  ├─ ComputerInfo.cs          matériel + Windows (une classe, des propriétés)
+│  ├─ DiskInfo.cs  VolumeInfo.cs
+│  ├─ SoftwareItem.cs  ToolInfo.cs  ProjectInfo.cs
+│  ├─ FileEntry.cs             struct : dossier, nom, extension, taille, date
+│  ├─ ScanIssue.cs             dossier, code, message
+│  └─ ComparisonResult.cs      ajoutés, supprimés, non vérifiables, modifiés, delta
+│
+├─ Data/
+│  ├─ Schema.sql               ressource embarquée, les 10 tables + index
+│  ├─ Database.cs              ouverture, PRAGMA, création/migration du schéma
+│  ├─ InventoryStore.cs        créer, lister, supprimer, clôturer un inventaire
+│  ├─ ScanStore.cs             écriture par lots (dossiers, fichiers, incidents)
+│  ├─ ReadQueries.cs           lectures d'affichage (dossiers, fichiers, top, types)
+│  └─ ComparisonQueries.cs     les quatre requêtes du livrable 5
+│
+├─ Scanning/
+│  ├─ FileScanner.cs           parcours DFS, totaux, progression, annulation
+│  ├─ ScanProgress.cs          compteurs + chemin courant
+│  └─ BatchWriter.cs           accumulation et envoi des lots
+│
+├─ Collecting/
+│  ├─ ComputerCollector.cs     WMI + registre
+│  ├─ SoftwareCollector.cs     trois clés Uninstall
+│  ├─ ToolCollector.cs         six outils
+│  └─ ProjectDetector.cs       marqueurs package.json / requirements.txt / pyproject.toml
+│
 ├─ ViewModels/
-│  ├─ DashboardViewModel.cs … ReportsViewModel.cs
-│  └─ Rows/                         lignes de tableau (structs en lecture seule)
+│  ├─ ObservableObject.cs      ~20 lignes : INotifyPropertyChanged + OnPropertyChanged
+│  ├─ RelayCommand.cs          ~25 lignes
+│  ├─ ShellViewModel.cs        navigation, inventaire en cours, état global
+│  ├─ DashboardViewModel.cs  ComputerViewModel.cs  FilesViewModel.cs
+│  └─ SoftwareViewModel.cs   ToolsViewModel.cs     DevelopmentViewModel.cs
+│     EvolutionViewModel.cs
+│
+├─ Views/
+│  ├─ ShellWindow.xaml         barre latérale + barre supérieure + zone de contenu
+│  ├─ DashboardView.xaml       OrdinateurView.xaml    FilesView.xaml
+│  ├─ SoftwareView.xaml        ToolsView.xaml         DevelopmentView.xaml
+│  └─ EvolutionView.xaml
+│
 ├─ Controls/
-│  ├─ BarChart.cs                   dessin natif, aucune dépendance
-│  ├─ DonutChart.cs
-│  ├─ StatCard.xaml                 carte de synthèse réutilisable
-│  ├─ StatusBadge.xaml              Complet / Partiel / Annulé / Échec
-│  ├─ ProgressBanner.xaml
-│  └─ EmptyState.xaml
-├─ Services/
-│  ├─ InventoryRunner.cs            enchaîne collecte → scan → clôture
-│  ├─ ProgressBridge.cs             IProgress → Dispatcher
-│  └─ DialogService.cs
+│  ├─ StatCard.xaml            carte de synthèse
+│  ├─ BarRow.xaml              libellé + barre + valeur (le seul graphique)
+│  └─ StatusBadge.xaml         Complet / Partiel / Annulé
+│
 ├─ Themes/
-│  ├─ Colors.xaml  Typography.xaml  Controls.xaml
-│  └─ (aucune animation en V1)
-└─ Resources/app.ico
+│  └─ Theme.xaml               couleurs, typographie, styles de tableau et de bouton
+│
+└─ Resources/
+   └─ app.ico
 ```
+
+### Nombre de fichiers par dossier
+
+| Dossier | Fichiers | Remarque |
+|---|---|---|
+| `Models` | 10 | classes de données, sans logique |
+| `Data` | 6 | tout le SQL est ici |
+| `Scanning` | 3 | aucune dépendance à WPF |
+| `Collecting` | 4 | une classe par domaine |
+| `ViewModels` | 9 | un par vue + 2 utilitaires |
+| `Views` | 8 | XAML |
+| `Controls` | 3 | |
+| `Themes` | 1 | |
+
+Total ≈ 44 fichiers, dont 8 fichiers XAML et un fichier SQL. C'est l'ordre de grandeur
+d'un petit logiciel de bureau, pas d'une plateforme.
 
 ---
 
-## 4. Règles de dépendance (vérifiables en revue)
+## 3. Ce qu'on ne trouve **pas** dans l'arborescence
 
-```
-Atlas.App ──► Atlas.Core ◄── Atlas.Scan
-    │             ▲      ◄── Atlas.Collectors
-    ├─────────────┤      ◄── Atlas.Data
-    └─────────────┘      ◄── Atlas.Reports
-```
-
-| Règle | Vérification |
+| Absent | Pourquoi |
 |---|---|
-| `Atlas.Core` ne référence aucun autre projet ni package | inspection du `.csproj` |
-| `Atlas.Core` ne contient aucun `using System.Windows.*` | recherche textuelle en CI |
-| `Atlas.Data` ne contient aucun `using System.Windows.*` | idem |
-| `Atlas.Scan` et `Atlas.Collectors` ne contiennent aucune API d'écriture (`File.Write*`, `File.Delete`, `File.Move`, `Registry.SetValue`, `Directory.CreateDirectory` hors dossier applicatif) | test « garde-fou » (livrable 4, § 10) |
-| `Atlas.App` ne contient aucun SQL | recherche de `SELECT`/`INSERT`/`CREATE TABLE` dans `Atlas.App` |
-| Aucun projet ne référence `Atlas.App` | inspection |
-
-Ces règles sont peu coûteuses à écrire et évitent la dérive classique vers un
-« projet unique fourre-tout ».
+| `Atlas.Core`, `Atlas.Data`, `Atlas.Scan`… | un seul projet : les dossiers suffisent |
+| `Contracts/`, `Ports/`, `Abstractions/` | aucune interface pour un seul implémenteur |
+| `Services/` | aurait servi d'interface entre vues et données : les ViewModels appelent `Data` directement |
+| `Reports/` | fonction supprimée |
+| `Migrations/` (dossier de scripts) | une seule table de version dans `Database.cs`, le schéma est créé en une fois |
+| `Scripts/`, `tools/`, `build/` | publication = un `dotnet publish` documenté dans le README |
+| `Interop/` | aucune signature P/Invoke en V1 |
+| `Resources/fonts`, `Resources/icons` | Segoe UI et les icônes système suffisent |
 
 ---
 
-## 5. Emplacements sur la machine cible
+## 4. Le projet de tests `tests/AtlasPc.Tests/`
 
-| Élément | Emplacement | Remarque |
+Il est **conservé** parce qu'il teste des choses qui ne se vérifient pas à l'œil :
+
+| Test | Ce qu'il prouve |
+|---|---|
+| `Scanner_CalculeLesTotauxDeDossier` | les tailles remontées sont exactes |
+| `Scanner_SauteLesPointsDeReparse` | aucune boucle infinie |
+| `Scanner_EnregistreLesDossiersIllisibles` | un refus d'accès ne casse pas le scan |
+| `Scanner_AnnuleSansPerdreLeLotEnCours` | l'annulation laisse un inventaire cohérent |
+| `Comparison_DistingueSuppressionEtZoneNonAnalysee` | **la règle la plus importante du cahier des charges** |
+| `Comparison_DetecteAjoutSuppressionModification` | sur un jeu de fichiers créé puis modifié |
+| `Software_FiltreSystemComponentEtParentKeyName` | le filtrage du registre est correct |
+| `ProjectDetector_IgnoreNodeModules` | pas de faux projets |
+| `Scanning_NeContientAucuneApiEcriture` | garde-fou de lecture seule (analyse par réflexion) |
+
+Le projet de tests utilise des **dossiers temporaires réels** pour le scan et une base
+SQLite temporaire pour la comparaison. Aucune interface n'est nécessaire : on teste le
+code réel, pas des doublures. C'est plus fiable et plus court.
+
+---
+
+## 5. Détail des fichiers clés
+
+| Fichier | Rôle | Taille attendue |
 |---|---|---|
-| Exécutable | `%LOCALAPPDATA%\Programs\ATLAS PC\` (ou dossier choisi, portable) | pas d'installeur en V1 |
-| Base | `%LOCALAPPDATA%\ATLAS PC\atlas.db` | jamais dans le dossier de l'exe (droits, roaming) |
-| Journaux | `%LOCALAPPDATA%\ATLAS PC\logs\` | rotation à 5 fichiers × 1 Mo |
-| Exports | `%USERPROFILE%\Documents\ATLAS PC\Rapports\` (modifiable) | choisi par l'utilisateur |
-| Configuration | `%LOCALAPPDATA%\ATLAS PC\settings.json` | petite, lisible, sans secret |
+| `Data/Schema.sql` | les 10 tables et les index, en un seul script | ~120 lignes |
+| `Data/Database.cs` | ouverture, `PRAGMA`, exécution du schéma, version | ~120 lignes |
+| `Data/ScanStore.cs` | insertion par lots, transactions | ~150 lignes |
+| `Data/ComparisonQueries.cs` | 4 requêtes + lecture | ~200 lignes |
+| `Scanning/FileScanner.cs` | parcours, totaux, progression, annulation | ~200 lignes |
+| `Collecting/ComputerCollector.cs` | 7 requêtes WMI + registre | ~180 lignes |
+| `Collecting/ToolCollector.cs` | résolution + versions | ~180 lignes |
+| `ViewModels/FilesViewModel.cs` | arbre, tableau, recherche | ~200 lignes |
+| `Views/*.xaml` | 7 vues | 80-150 lignes chacune |
 
-Tout ce qu'ATLAS PC écrit est **confiné** à ces quatre emplacements. C'est la
-traduction opérationnelle de la règle de lecture seule.
-
----
-
-## 6. Conventions
-
-- **Langue du code** : anglais pour les identifiants, français pour les libellés
-  d'interface et la documentation. Une seule règle, appliquée partout.
-- **Nommage** : `PascalCase` pour les types et membres publics, `_camelCase` pour les
-  champs privés, `I` pour les interfaces, `Async` pour les méthodes asynchrones.
-- **Fichiers** : un type public par fichier, nom du fichier = nom du type.
-- **Nullable** : activé dans `Directory.Build.props` pour les projets qui le
-  supportent ; sinon, annotations explicites.
-- **Analyseurs** : `Microsoft.CodeAnalysis.NetAnalyzers` + `.editorconfig` ; les
-  avertissements sont traités en erreurs en Release.
-- **Tests** : nommage `Method_Scenario_ExpectedResult`.
-- **Commits** : conventionnels (`feat:`, `fix:`, `docs:`, `test:`, `chore:`).
+Aucun fichier ne devrait dépasser 300 lignes. Au-delà, c'est le signe qu'une
+responsabilité a été mal placée.
 
 ---
 
-## 7. Intégration continue
+## 6. Emplacements sur la machine
 
-| Workflow | Déclencheur | Étapes |
-|---|---|---|
-| `build.yml` | push, PR | restore, build Release `/warnaserror`, test « garde-fou » des API d'écriture |
-| `test.yml` | push, PR | tests unitaires, publication du rapport de couverture |
-| `release.yml` | tag `v*` | build, `zip` portable, notes de version, somme SHA-256 |
+| Élément | Emplacement |
+|---|---|
+| Exécutable et DLL | dossier choisi par l'utilisateur (copie de dossier, pas d'installeur) |
+| Base | `%LOCALAPPDATA%\ATLAS PC\atlas.db` |
+| Journal d'erreurs | `%LOCALAPPDATA%\ATLAS PC\erreurs.log` (rotation à 1 Mo × 3) |
 
-Pas de publication automatique sur un magasin : la V1 est un dossier compressé et un
-exécutable, conformément à « fonctionne localement, gratuitement, sans abonnement ».
+Rien d'autre n'est écrit. Aucune clé de registre, aucun fichier dans `Program Files`,
+aucun service.
+
+**Distribution** : un dossier compressé contenant l'exécutable et la DLL SQLite.
+Aucun installeur, aucun désinstalleur : supprimer le dossier suffit, la base restant
+dans `%LOCALAPPDATA%` si l'utilisateur veut la conserver.
+
+---
+
+## 7. Conventions
+
+- Identifiants en anglais, libellés d'interface et documentation en français.
+- `PascalCase` pour les types et membres publics, `_camelCase` pour les champs privés.
+- Un type public par fichier, nom du fichier = nom du type.
+- `LangVersion` par défaut de `net48` (C# 7.3). Pas de polyfill, pas de `record`, pas
+  de `init` : la syntaxe disponible suffit largement.
+- Pas d'analyseurs supplémentaires, pas de règles de style exotiques : `.editorconfig`
+  pour l'encodage et les fins de ligne seulement.
+- Commits : `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
+
+---
+
+## 8. Intégration continue
+
+Un seul workflow, trois commandes, exécuté sur `windows-latest` :
+
+```yaml
+- dotnet build ATLAS-PC.sln -c Release /warnaserror
+- dotnet test  tests/AtlasPc.Tests -c Release
+- dotnet publish src/AtlasPc -c Release -o artifacts
+```
+
+Rien d'autre. Pas de publication automatique, pas de signature, pas de paquet.

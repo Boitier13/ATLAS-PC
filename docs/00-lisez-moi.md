@@ -1,127 +1,244 @@
-# ATLAS PC — Dossier technique préalable
+# ATLAS PC — Dossier technique préalable (V1 simplifiée)
 
 **Étude technique, sans programmation.**
-Version du dossier : 1.0 — 17 novembre 2026.
+Version 2.0 — 17 novembre 2026. Remplace la version 1.0 du même jour.
 
 ---
 
 ## 1. Objet et périmètre
 
-Ce dossier répond au cahier des charges « ATLAS PC » : étudier quatre dépôts GitHub,
-comparer leurs méthodes, et arrêter une architecture pour un logiciel Windows
-d'inventaire local, gratuit, hors ligne, sans droits administrateur, destiné à un
-**Dell OptiPlex 780 — Windows 10 22H2 x64, CPU ancien, 6 Go de RAM, disque dur
-mécanique, 1440 × 900**.
+Ce dossier prépare un logiciel Windows d'inventaire local : matériel, Windows,
+fichiers, logiciels installés, outils de développement, projets Python/Node.js, avec
+historique et comparaison de deux inventaires.
 
-Aucune ligne de code applicatif n'a été écrite. Aucun dépôt n'a été modifié.
-Les seuls livrables sont des documents et une maquette graphique.
+**Machine cible** : Dell OptiPlex 780 · Windows 10 22H2 x64 · 6 Go de RAM · disque dur
+mécanique · 1440 × 900 · hors ligne · gratuit · sans droits administrateur.
 
-## 2. Méthode réellement employée
+**Cette version 2.0 applique une consigne de simplification.** Le périmètre a été
+réduit, l'architecture ramenée à un seul projet, la base à dix tables, le plan de
+développement à cinq étapes. Ce qui a été retiré l'a été **franchement** : supprimé,
+pas déplacé dans une rubrique « plus tard ». Le détail et les motifs sont au § 5.
+
+Aucune ligne de code applicatif n'a été écrite. Aucun dépôt étudié n'a été modifié.
+
+---
+
+## 2. Méthode
 
 | Étape | Ce qui a été fait |
 |---|---|
-| Clonage | Les quatre dépôts ont été clonés en profondeur 1 puis lus sur disque. |
-| Lecture | README, LICENSE/NOTICE, arborescence complète, fichiers sources du moteur de scan, des modèles de données, de la persistance, des exports et de l'interface. |
-| Vérification | Chaque constat technique cite un **chemin exact** et, quand c'est utile, un numéro de ligne. |
-| Mesure | Aucune : le code n'a **pas** été compilé ni exécuté, et les temps annoncés par les README ne sont pas reproduits ici comme des mesures. |
-| Licences | Lecture du texte de licence du dépôt, des en-têtes SPDX fichier par fichier, et des mentions de tiers. |
+| Clonage | les quatre dépôts clonés en profondeur 1 et lus sur disque |
+| Lecture | README, licences, arborescence, moteur de scan, modèles, persistance, exports, interface |
+| Vérification | chaque constat cite un **chemin exact** et, quand c'est utile, une ligne |
+| Mesure | **aucune** : code non compilé, non exécuté, aucune performance mesurée |
 
-**Limite majeure de l'étude, à garder en tête :** l'analyse est **statique** et a été
-réalisée sur Linux. Aucun binaire Windows n'a été lancé, aucune performance n'a été
-mesurée sur l'OptiPlex 780. Tout chiffre de performance figurant ici est soit une
-citation explicite du dépôt, soit une estimation clairement étiquetée « estimation ».
+**Limite à garder en tête** : l'analyse est **statique**, réalisée sous Linux. Aucun
+binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
+**estimation** clairement signalée.
 
 ### Références exactes des dépôts examinés
 
-| Dépôt | Commit examiné | Date du commit | Version affichée | Licence |
+| Dépôt | Commit | Date | Version | Licence |
 |---|---|---|---|---|
-| `neortal-technologies/NeoTreescan` | `40acd1d27b7f8f255ef23341856d66125073dc10` | 2026-04-22 | 1.0.0 | Apache-2.0 |
-| `rodrigokiller/diskplot` | `8787cf6b01840cddd263915ffaf286c78c678b05` | 2026-10-17 | 0.4.0 | MIT |
-| `TheLouisMahdi/louis-mahdi-system-inspector` | `420b20a6adc9c004e84e65e1e3b439ebe7b752c4` | 2026-07-30 | 2.2.0 | MIT |
-| `windirstat/windirstat` | `d4f14bf75f47faacc78e7fa040c9dc75865f1c14` | 2026-11-15 | (voir `Version.h`) | GPL-3.0-or-later |
+| `neortal-technologies/NeoTreescan` | `40acd1d2` | 2026-04-22 | 1.0.0 | Apache-2.0 |
+| `rodrigokiller/diskplot` | `8787cf6b` | 2026-10-17 | 0.4.0 | MIT |
+| `TheLouisMahdi/louis-mahdi-system-inspector` | `420b20a6` | 2026-07-30 | 2.2.0 | MIT |
+| `windirstat/windirstat` | `d4f14bf7` | 2026-11-15 | 2.10.0 | GPL-3.0-or-later |
 
-## 3. Sommaire des livrables
+---
+
+## 3. Sommaire
 
 | # | Livrable demandé | Fichier |
 |---|---|---|
-| — | Index, synthèse et décision | `docs/00-lisez-moi.md` (ce document) |
-| 1 | Rapport d'analyse — NeoTreescan | [`docs/01-analyse-neotreescan.md`](01-analyse-neotreescan.md) |
-| 1 | Rapport d'analyse — Diskplot | [`docs/02-analyse-diskplot.md`](02-analyse-diskplot.md) |
-| 1 | Rapport d'analyse — System Inspector | [`docs/03-analyse-system-inspector.md`](03-analyse-system-inspector.md) |
-| 1 | Rapport d'analyse — WinDirStat | [`docs/04-analyse-windirstat.md`](04-analyse-windirstat.md) |
-| 2 | Tableau comparatif des techniques et fonctionnalités | [`docs/05-tableau-comparatif.md`](05-tableau-comparatif.md) |
-| 3 | Licences et risques de réutilisation | [`docs/06-licences-et-risques.md`](06-licences-et-risques.md) |
-| 4 | Architecture recommandée et justification | [`docs/07-architecture-cible.md`](07-architecture-cible.md) |
-| 5 | Schéma SQLite et stratégie de comparaison | [`docs/08-modele-sqlite.md`](08-modele-sqlite.md) |
-| 6 | Maquette et spécification de l'interface | [`docs/09-interface.md`](09-interface.md) + `assets/maquette-atlas-pc.png` |
-| 7 | Arborescence du futur code source | [`docs/10-arborescence-projet.md`](10-arborescence-projet.md) |
-| 8 | Plan de développement par étapes | [`docs/11-plan-de-developpement.md`](11-plan-de-developpement.md) |
-| 9 | Risques, limites et points à vérifier | [`docs/12-risques-et-limites.md`](12-risques-et-limites.md) |
+| — | Index, synthèse, **ce qui a été supprimé** | ce document |
+| 1 | Analyse des quatre dépôts | [`01`](01-analyse-neotreescan.md) · [`02`](02-analyse-diskplot.md) · [`03`](03-analyse-system-inspector.md) · [`04`](04-analyse-windirstat.md) |
+| 2 | Tableau comparatif | [`05-tableau-comparatif.md`](05-tableau-comparatif.md) |
+| 3 | Licences et risques de réutilisation | [`06-licences-et-risques.md`](06-licences-et-risques.md) |
+| 4 | Architecture simplifiée | [`07-architecture-cible.md`](07-architecture-cible.md) |
+| 5 | Modèle SQLite réduit | [`08-modele-sqlite.md`](08-modele-sqlite.md) |
+| 6 | Interface (7 rubriques) | [`09-interface.md`](09-interface.md) + `assets/maquette-atlas-pc.png` |
+| 7 | Arborescence du projet | [`10-arborescence-projet.md`](10-arborescence-projet.md) |
+| 8 | Plan en cinq étapes | [`11-plan-de-developpement.md`](11-plan-de-developpement.md) |
+| 9 | Risques, limites, points à vérifier | [`12-risques-et-limites.md`](12-risques-et-limites.md) |
 
-## 4. Synthèse en une page
+---
 
-### 4.1 Ce que les quatre dépôts apportent — et ce qu'ils n'apportent pas
+## 4. Synthèse et décision
 
-Aucun des quatre projets **ne fait ATLAS PC**. Ils couvrent chacun un morceau :
+### 4.1 Le périmètre final, en une table
 
-- **NeoTreescan** est le plus proche du *style* visé (WPF, C#, moteur de scan
-  Win32 propre, interface à menu et tableaux) mais ne fait que de l'espace disque :
-  pas de matériel, pas de logiciels, pas d'outils, **pas de base, pas d'historique,
-  pas de comparaison**, et pas de tests.
-- **Diskplot** apporte la meilleure **idée d'implémentation mémoire** (tableaux typés
-  en colonnes, ~60 octets par fichier) et un vrai mécanisme d'**instantanés + diffs**,
-  mais son diff est volontairement grossier (seuil de 8 Mio) et sa plateforme
-  Electron est inadaptée à 6 Go de RAM / disque dur.
-- **System Inspector** est le seul à traiter l'**inventaire matériel et Windows**
-  avec une rigueur intéressante (statut de collecte par champ, dégradation gracieuse,
-  délai par requête), mais il est en PowerShell + WinForms, sans logiciels ni
-  fichiers.
-- **WinDirStat** est la référence industrielle du scan (MFT NTFS, file de travail
-  multi-thread, annulation par `CancelSynchronousIo`, exports CSV/JSON), mais c'est
-  du C++ GPL-3.0 : inspiration uniquement, **aucune copie possible** dans un
-  projet non-GPL.
+| Rubrique | Contenu de la V1 |
+|---|---|
+| **Tableau de bord** | 4 chiffres, répartition par dossier, types de fichiers, liste des inventaires |
+| **Ordinateur** | fabricant, modèle, CPU, RAM, GPU, BIOS, Windows, disques, volumes |
+| **Fichiers** | dossiers, fichiers : nom, dossier, extension, taille, date de modification |
+| **Logiciels** | logiciels déclarés au registre (nom, version, éditeur, emplacement, date) |
+| **Outils** | Python, pip, Node.js, npm, Git, Tesseract : chemin, version, statut |
+| **Développement** | projets Python et Node.js par fichiers caractéristiques, indicateur Git |
+| **Évolution** | deux inventaires : ajoutés, supprimés, modifiés, espace occupé |
 
-### 4.2 Décision recommandée
+### 4.2 Décision technique
 
-| Sujet | Recommandation | Raison dominante |
+| Sujet | Choix | Raison dominante |
 |---|---|---|
-| Runtime | **.NET Framework 4.8 (in-box), projets au format SDK** | Déjà présent sur Windows 10 22H2, aucune installation, démarrage à froid rapide sur disque mécanique. Alternative `.NET 10 LTS` documentée et chiffrée. |
-| Interface | **WPF** (XAML), thème clair sobre, `DataGrid` virtualisé | Riche, mature, DPI-aware, présente dans le système ; pas de dépendance graphique lourde. |
-| Graphiques | **Dessin natif WPF** (barres, anneau, histogrammes) ; OxyPlot (MIT) seulement si besoin | Évite SkiaSharp/WebView et la mémoire associée. |
-| Base | **SQLite** via `Microsoft.Data.Sqlite` + `SQLitePCLRaw` (ou `System.Data.SQLite`) | Fichier unique, requêtes SQL de comparaison, aucun serveur. |
-| Scan | **Un seul worker**, énumération `FindFirstFileExW` en flux, écriture SQLite par lots | Disque mécanique : le parallélisme dégrade plus qu'il n'aide ; mémoire bornée. |
-| Historique | **Modèle relationnel normalisé par inventaire** (dossiers + fichiers), pas d'image binaire | Comparaison en SQL, taille maîtrisée, pas de recopie de contenu. |
-| Licence ATLAS PC | **MIT** recommandée (ou Apache-2.0 si dépôt public) | Compatible avec toutes les inspirations permises ; exclut toute copie GPL. |
+| Projet | **un seul projet WPF**, dossiers par responsabilité | moins de couches, moins de fichiers, plus lisible |
+| Runtime | **.NET Framework 4.8, cible unique `net48`** | présent dans Windows 10 22H2, aucun runtime à installer, démarrage rapide sur disque dur |
+| Base | **SQLite, 10 tables**, un seul paquet NuGet | fichier unique, comparaison en SQL, aucune installation |
+| Parcours | **API standard .NET** (`DirectoryInfo.EnumerateFileSystemInfos`), **un thread**, écriture par lots de 500 | simplicité ; Win32 seulement si la mesure l'exige |
+| Mémoire | **aucun fichier conservé en mémoire** | pic visé < 200 Mo sur 6 Go |
+| Historique | comparaison par **chemin complet normalisé**, suppression **manuelle** | simplicité et maîtrise par l'utilisateur |
+| Licence du futur projet | **MIT** | compatible avec toutes les inspirations permises, exclut la copie GPL |
 
-### 4.3 Les cinq constats qui pilotent l'architecture
+### 4.3 Les quatre constats qui pilotent cette version
 
-1. **Le PC cible est le facteur limitant, pas les fonctionnalités.** 6 Go de RAM,
-   disque mécanique et un CPU ancien imposent un moteur de scan **en flux**, une
-   mémoire **constante**, **un** travailleur, et une interface qui ne recharge
-   jamais tout l'inventaire en mémoire.
-2. **Le modèle « un objet par fichier en RAM »** (NeoTreescan, WinDirStat) est
-   inadapté ici : mémoire proportionnelle au nombre de fichiers, et chez
-   NeoTreescan le chemin complet est stocké deux fois. Diskplot montre la bonne
-   direction avec des tableaux typés (~60 octets par fichier) ; ATLAS PC va plus
-   loin en ne gardant **aucun** fichier en mémoire, puisque SQLite les reçoit au fil
-   de l'eau. Seuls les totaux par dossier restent en RAM.
-3. **Aucun des quatre ne conserve un historique comparables fichier par fichier.**
-   C'est la fonctionnalité la plus coûteuse du cahier des charges et elle doit être
-   conçue dès le modèle de données, pas ajoutée après.
-4. **`.NET 9` (NeoTreescan) n'est pas un choix à recopier** : .NET 8 et .NET 9 sont
-   hors support depuis le 10 novembre 2026, et Windows 10 22H2 est lui-même sorti
-   du support standard le 14 octobre 2025. Copier ce socle reviendrait à démarrer
-   sur une pile déjà non maintenue.
-5. **La licence est un critère de conception, pas une formalité.** WinDirStat est
-   GPL-3.0-or-later sur 174 fichiers : la contamination est certaine en cas de
-   copie. NeoTreescan (Apache-2.0) et les deux MIT permettent une réutilisation
-   avec attribution, ce qui change radicalement le coût de développement.
+1. **Le PC cible impose la sobriété** : 6 Go, disque mécanique, CPU ancien. Un thread,
+   pas d'arbre en mémoire, démarrage rapide.
+2. **Aucun des quatre dépôts ne fait ATLAS PC.** Ils couvrent chacun un morceau ; les
+   fonctions « logiciels / outils / projets » et « comparaison fichier par fichier »
+   restent entièrement à écrire.
+3. **Le dossier initial était surdimensionné** : sept projets, vingt tables, dix
+   jalons, des exports, un treemap. Rien de tout cela n'était exigé par le besoin.
+4. **Deux horizons sont hors support** (Windows 10 22H2 depuis le 14/10/2025 ; .NET 8
+   et 9 depuis le 10/11/2026). La bonne réponse n'est pas d'empiler les couches, mais
+   de dépendre du minimum : le framework présent dans le système.
 
-### 4.4 Ce que ce dossier ne tranche pas
+### 4.4 Ce que le dossier ne tranche pas
 
-Les points qui ne peuvent être décidés sans la machine réelle sont listés et
-priorisés dans [`docs/12-risques-et-limites.md`](12-risques-et-limites.md) § 4
-(« Points à vérifier avant de figer l'architecture »). Les trois plus importants :
-le nombre réel de fichiers du disque cible (dimensionne la base), le comportement
-de WPF sur le GPU intégré à 1440 × 900, et la compatibilité effective du provider
-SQLite avec `net48`.
+Les points qui exigent la machine réelle sont listés dans
+[`12-risques-et-limites.md`](12-risques-et-limites.md) § 4. Les deux plus importants :
+**le nombre réel de fichiers** (dimensionne la base et la durée) et **la vitesse du
+parcours standard .NET** (déclenche ou non l'ajout d'un énumérateur Win32).
+
+---
+
+## 5. Ce qui a été supprimé, et pourquoi
+
+Cette section est le cœur de la révision. **Rien de ce qui suit n'est reporté** : c'est
+retiré du dossier, du périmètre et du plan — sauf mention explicite « reporté (demandé) ».
+
+### 5.1 Architecture
+
+| Supprimé | Remplacé par | Motif |
+|---|---|---|
+| 6 projets (`Core`, `Data`, `Scan`, `Collectors`, `Reports`, `App`) | **1 projet**, 8 dossiers | les frontières entre projets étaient théoriques : rien n'empêchait d'appeler `Data` depuis `Core` |
+| Multi-ciblage `net48;net10.0-windows` | **`net48` seul** | deux jeux de dépendances, polyfills, double validation, pour un besoin inexistant |
+| 8 interfaces (`ICollector`, `IScanEngine`, `IFileSystem`, `IWmiQuery`, `IRegistryReader`, `IProcessRunner`, `IInventoryRepository`, `IReportWriter`) | **aucune interface** | un seul implémenteur chacun ; les tests utilisent le vrai code sur des dossiers temporaires |
+| Couche `Services` | les ViewModels appellent `Data` | une couche qui ne fait que transmettre |
+| Couche `Ports` | — | conséquence directe de la suppression des interfaces |
+| `Directory.Build.props`, analyseurs, `LangVersion` avancée | `.editorconfig` seul | configuration pour deux projets |
+
+### 5.2 Base de données
+
+| Supprimé | Remplacé par | Motif |
+|---|---|---|
+| 20 tables | **10 tables** | |
+| `hw_computer`, `hw_cpu`, `hw_memory_module`, `hw_gpu`, `hw_disk`, `hw_partition`, `hw_volume`, `hw_bios`, `os_info` (9 tables) | **3 tables** : `computer`, `disk`, `volume` | une ligne de matériel n'a pas besoin de neuf tables |
+| `inventory_scope` (multi-racines) | `inventory.root_path` | une racine par inventaire suffit |
+| `collect_status` et `field_note` (traçabilité par champ) | `—` affiché, `scan_issue` pour les erreurs de fichiers | coût de mise en œuvre très supérieur au bénéfice pour un outil personnel |
+| `file_type_stat`, `age_bucket_stat`, `size_bucket_stat` (statistiques pré-calculées) | **requêtes `GROUP BY` à la demande** | quelques centaines de lignes de code en moins, à mesurer |
+| `path_hash` (FNV-1a 64 bits) | **`folder_path` + `name`** avec index `COLLATE NOCASE` | « identification trop sophistiquée » ; la jointure sur deux colonnes est plus simple et couvre le besoin |
+| `folder.parent_id` + CTE récursive | **`folder.parent_path`** | l'arborescence se construit avec une colonne texte, sans récursion SQL |
+| Politique de rétention automatique (3 détaillés / 9 allégés / purge) | **suppression manuelle** par l'utilisateur | mécanisme complexe, surprenant, et à expliquer |
+| Colonnes `allocated_bytes`, `cluster_size`, `attributes` | **retirées** | reportées (demandé) |
+| `software.identity`, `confidence`, `is_update` | nom + champs utiles seulement | l'identité textuelle n'était utile que pour un diff fin |
+| `project.markers`, `kinds` (multi-valeurs) | `kind` + `is_git` | deux types de projets, un booléen |
+| Table `schema_version` + migrations | création du schéma en une fois, version stockée dans `Database.cs` | une seule version de schéma en V1 |
+
+### 5.3 Inventaire des fichiers
+
+| Supprimé | Remplacé par | Motif |
+|---|---|---|
+| `FindFirstFileExW`, `FIND_FIRST_EX_LARGE_FETCH`, `SafeFindHandle`, structures `WIN32_FIND_DATA`, préfixe `\\?\` | **`DirectoryInfo.EnumerateFileSystemInfos`** | API standard, 40 lignes, métadonnées déjà en cache ; Win32 réservé à une contingence mesurée |
+| Taille allouée, `GetCompressedFileSize`, taille de cluster | **retirés** | reportés (demandé) |
+| Attributs de fichier stockés | **retirés** | reportés (demandé) |
+| Parallélisme, 1-2 travailleurs | **un seul thread** | disque mécanique, simplicité |
+| `FIND_FIRST_EX_LARGE_FETCH` et pilotage de tampon | — | propriété de l'API qui n'est plus utilisée |
+| Détection des liens physiques | — | hors périmètre |
+
+### 5.4 Collectes
+
+| Supprimé | Motif |
+|---|---|
+| **Détection des logiciels portables** (heuristique, `confidence`, raccourcis) | trop incertaine : faux positifs, explication difficile, valeur faible |
+| Partitions, barrettes mémoire détaillées, carte mère, chipset, SMART, TPM, Secure Boot, moniteurs, batterie, réseau | détails secondaires (demandé) |
+| **Analyse des dépôts Git** (branche, remote, commits) | non demandée ; seul un indicateur « présence de `.git` » est conservé |
+| Analyse des dépendances (contenu de `package.json`, `requirements.txt`) | explicitement exclue |
+| Détection d'autres marqueurs (`*.csproj`, `Cargo.toml`, `go.mod`, `.sln`) | hors périmètre : Python et Node.js seulement |
+| Mode administrateur, `SeBackupPrivilege`, scan MFT | hors périmètre, exige l'élévation |
+| Requêtes WMI de secours et replis multiples | un `try/catch` par requête suffit |
+
+### 5.5 Historique et comparaison
+
+| Supprimé | Remplacé par | Motif |
+|---|---|---|
+| Instantanés binaires compressés (modèle Diskplot) | **lignes SQLite** | interrogeable, pas de format propriétaire |
+| Hachage de chemin, appariement par nom dans le parent, seuils de 4/8 Mio | **jointure sur chemin complet normalisé** | plus simple, et couvre **tous** les fichiers, pas seulement les gros |
+| Allègement automatique des inventaires anciens | suppression manuelle | voir § 5.2 |
+| Comparaison à trois inventaires, courbes de tendance | **deux inventaires** | demandé |
+| `VACUUM` automatique | rien | inutile sur ce volume |
+
+### 5.6 Interface
+
+| Supprimé | Motif |
+|---|---|
+| **Rubrique « Rapports »** | « aucune fonction de rapport ou d'exportation » |
+| **Module d'export HTML / CSV / JSON**, masquage des chemins à l'export | même raison ; le module entier disparaît, pas seulement le bouton |
+| **Treemap** | coût de développement élevé, non exigé, faible lisibilité sans interactions coûteuses |
+| **Anneau / camembert** | remplacé par des lignes de barres |
+| Courbe d'évolution du stockage | non demandée |
+| Filtres avancés (taille, âge, type, propriétaire) | non demandés |
+| Écran d'options, choix de thème | un thème clair unique suffit |
+| Raccourcis multiples | trois raccourcis |
+
+### 5.7 Plan et documentation
+
+| Supprimé | Remplacé par / motif |
+|---|---|
+| Plan en 10 jalons (M0 → M9) | **5 étapes** (3 + 3 + 6 + 3 + 4 jours) |
+| Jalon dédié aux rapports (M8) | supprimé avec la fonction |
+| Jalon M0 « socle et vérifications » séparé | **fondu dans l'étape 1**, qui produit une application utilisable |
+| `docs/13-registre-inspiration.md` (document entier) | **5 lignes** ajoutées au livrable 3 : un document de plus pour une règle de gouvernance était disproportionné |
+| `THIRD-PARTY-NOTICES.md` | une seule dépendance (SQLite, domaine public) : aucune obligation de notice |
+| Dossier `tools/`, `build/`, scripts de publication | une commande `dotnet publish` documentée dans le README |
+| Scénario « fork de WinDirStat » (2 pages) | ramené à 3 lignes dans le livrable 3 |
+| Notations et tableaux redondants entre livrables | un seul tableau comparatif (livrable 2) |
+
+### 5.8 Ce que la simplification ne touche pas
+
+Trois règles restent **non négociables**, parce qu'elles viennent du cahier des charges
+et non de la technique :
+
+- **lecture seule** sur les fichiers et sur Windows ;
+- **ne jamais annoncer la disparition** d'un fichier dans une zone non analysée ;
+- **signaler** les éléments inaccessibles plutôt que de les ignorer.
+
+Ce sont les trois seules choses que la V1 ne peut pas simplifier.
+
+---
+
+## 6. Effet chiffré de la révision
+
+| Indicateur | Dossier v1.0 | Dossier v2.0 |
+|---|---|---|
+| Projets | 6 + 5 tests | **1 + 1 test** |
+| Interfaces déclarées | 8 | **0** |
+| Tables SQLite | 20 | **10** |
+| Dépendances NuGet | 3 (SQLite, OxyPlot, MVVM) | **1** |
+| Jalons | 10 | **5** |
+| Durée estimée | 31-43 j | **19 j** |
+| Rubriques d'interface | 8 | **7** |
+| Formats d'export | 3 | **0** |
+| Documents du dossier | 14 | **13** |
+
+---
+
+## 7. Ce qui reste à décider
+
+Trois décisions appartiennent au commanditaire, pas à l'étude
+([`12-risques-et-limites.md`](12-risques-et-limites.md) § 5) :
+
+1. la racine analysée : `C:` seul, ou n'importe quel dossier choisi ;
+2. l'espace occupé : la taille allouée est-elle nécessaire malgré tout, ou la somme des
+   tailles suffit-elle ;
+3. le projet sera-t-il distribué (ce qui fixe le niveau de documentation utilisateur).

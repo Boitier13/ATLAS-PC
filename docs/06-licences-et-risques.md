@@ -93,9 +93,8 @@ d'ATLAS PC sous MIT ou Apache-2.0, et *a fortiori* avec une distribution propri�
 | Apache-2.0 (NeoTreescan) | ✅ | ✅ | ✅ (avec `NOTICE`) | ✅ |
 | GPL-3.0 (WinDirStat) | ❌ | ❌ | ❌ | ✅ (tout le projet passe en GPL) |
 | SQLite (domaine public) | ✅ | ✅ | ✅ | ✅ |
-| Microsoft.Data.Sqlite (MIT) | ✅ | ✅ | ✅ | ✅ |
-| SQLitePCLRaw (Apache-2.0) | ✅ | ✅ | ✅ | ✅ |
-| OxyPlot (MIT) | ✅ | ✅ | ✅ | ✅ |
+| System.Data.SQLite.Core (domaine public) | ✅ | ✅ | ✅ | ✅ |
+| Microsoft.Data.Sqlite (MIT, solution de repli) | ✅ | ✅ | ✅ | ✅ |
 
 Rappel du sens de compatibilité : **MIT et Apache-2.0 peuvent entrer dans un projet
 GPL** (le projet devient GPL), **l'inverse est impossible**.
@@ -147,18 +146,19 @@ résultat compilé, elle est dans le **processus** : d'où la règle ci-dessous.
    (`FindFirstFileExW`, `GetFileInformationByHandleEx`, classes `Win32_*`),
    spécification SQLite, algorithme de treemap de Bruls/Huizing/van Wijk s'il est
    implémenté un jour.
-3. **Tenir un registre d'inspiration** (`docs/13-registre-inspiration.md`, à créer au
-   démarrage du développement) : pour chaque fonctionnalité, la source consultée, ce
-   qui a été retenu (l'idée), et la mention « aucune ligne copiée ». C'est la preuve
-   documentaire en cas de contestation, et cela protège aussi contre l'oubli.
+3. **Tenir un registre d'inspiration** — un tableau de cinq lignes, à la fin de ce
+   document (§ 8) : pour chaque apport, la source consultée, ce qui a été retenu
+   (l'idée) et la mention « aucune ligne copiée ». C'est la preuve documentaire en cas
+   de contestation, et cela protège aussi contre l'oubli.
 4. **Interdiction formelle d'ouvrir le code de WinDirStat** pour autre chose que la
    lecture d'idées, et jamais pendant l'écriture d'un module équivalent. Un
    développement dit « en chambre blanche » (clean room) est la seule protection
    robuste : une personne décrit le comportement attendu, une autre l'implémente.
    Compte tenu de la taille du projet ATLAS PC, la règle 1 suffit, mais la règle 4
    doit être écrite.
-5. **Vérifier les licences des dépendances avant ajout**, et les consigner dans un
-   `THIRD-PARTY-NOTICES.md` livré avec l'application.
+5. **Vérifier les licences des dépendances avant ajout.** La V1 n'en a qu'une,
+   `System.Data.SQLite.Core` (domaine public) : une ligne suffit dans le `README`, il
+   n'y a pas de fichier de notices à maintenir.
 6. **Attention aux générateurs de code et aux assistants IA** : ils peuvent
    reproduire des extraits sous licence. Tout bloc non trivial doit être relu,
    compris et, en cas de doute, réécrit. Ne pas leur fournir de code GPL comme
@@ -183,7 +183,7 @@ serait de forker WinDirStat (GPL) et d'y ajouter l'inventaire matériel, logicie
 l'historique. Ce scénario est **écarté** pour trois raisons vérifiées dans ce dossier :
 
 1. le socle est du **C++23 / Win32 / framework UI maison** de plusieurs dizaines de
-   milliers de lignes : ajouter huit rubriques d'interface y est hors de portée d'un
+   milliers de lignes : y ajouter sept rubriques d'interface est hors de portée d'un
    projet solo ;
 2. il n'existe **ni couche de persistance interrogeable, ni historique, ni
    comparaison** : tout le cœur du cahier des charges resterait à écrire ;
@@ -199,8 +199,8 @@ au projet complet en C#.
 
 | Risque | Probabilité | Impact | Parade |
 |---|---|---|---|
-| Copie involontaire d'un bloc GPL (WinDirStat) | Moyenne si lecture pendant l'écriture | **Élevé** (tout le projet contamine) | Règle 1 + registre d'inspiration |
-| Oubli du `NOTICE` Apache (NeoTreescan) | Faible | Moyen (non-conformité) | `THIRD-PARTY-NOTICES.md` généré au build |
+| Copie involontaire d'un bloc GPL (WinDirStat) | Moyenne si lecture pendant l'écriture | **Élevé** (tout le projet contamine) | règles 1 et 4 + registre du § 8 |
+| Oubli d'attribution Apache (NeoTreescan) | Faible | Moyen (non-conformité) | une entrée dans le `README` |
 | Réutilisation de code d'une version MIT de NeoTreescan sans le dire | Faible | Faible si attribution | Citer le commit d'origine |
 | Usage d'un nom ou logo de tiers | Faible | Moyen (marque) | Aucun élément de branding repris |
 | Dépendance ultérieure sous licence incompatible | Faible | Moyen | Revue de licence avant chaque ajout NuGet |
@@ -211,3 +211,21 @@ au projet complet en C#.
 impose de rester à distance du code. Cette asymétrie est le principal enseignement du
 livrable 3 : *la meilleure référence technique est précisément celle qu'on ne peut pas
 copier.*
+
+---
+
+## 8. Registre d'inspiration (version courte)
+
+Tenir ce tableau à jour suffit ; il remplace le document séparé envisagé en v1.0.
+
+| Apport retenu dans ATLAS PC | Source consultée | Ce qui est repris | Code copié |
+|---|---|---|---|
+| Structure d'écran, manifeste `asInvoker` + `PerMonitorV2` + long paths | NeoTreescan | idée d'organisation | non |
+| Collecte dégradée : `try/catch` par requête, délai, statut explicite | System Inspector | méthode | non |
+| Comparaison de deux inventaires, sens A → B, périmètre explicite | Diskplot | méthode | non |
+| Comptage des zones non analysées et refus de conclure | WinDirStat (`ScanOutcome`) | idée | non |
+| Parcours DFS, non-suivi des points de reparse | documentation Microsoft | API publique | non |
+
+> **Révision du 17 novembre 2026.** Le document `docs/13-registre-inspiration.md` est
+> supprimé : le tableau ci-dessus couvre le besoin. Les références à OxyPlot, aux
+> exports et au treemap ont été retirées, ces éléments étant hors périmètre.

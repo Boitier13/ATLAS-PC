@@ -120,12 +120,15 @@ Vérifié par absence, et confirmé par la liste des sections :
 - **aucun projet** ;
 - **aucune base de données, aucun historique, aucune comparaison**.
 
-Sur les huit rubriques d'ATLAS PC, il n'en couvre donc qu'une seule en profondeur :
+Sur les sept rubriques d'ATLAS PC, il n'en couvre donc qu'une seule en profondeur :
 « Ordinateur ».
 
 ---
 
 ## 4. Rapports
+
+> Décrit ici pour l'analyse du dépôt. **ATLAS PC ne comporte plus de fonction de
+> rapport** (voir `docs/00-lisez-moi.md` § 5.6).
 
 - `Write-TextReport` : sections lisibles, états explicites, pied de page.
 - `Write-JsonReport` : schéma stable, valeurs brutes **et** normalisées, source,
@@ -214,15 +217,18 @@ Deux enseignements pour ATLAS PC :
 ## 9. Ce qui est réutilisable comme inspiration
 
 1. **Le contrat de collecte** : chaque source renvoie un objet uniforme avec statut,
-   message, type d'exception, code, durée, source. C'est le squelette d'un
-   `ICollector` en C#.
+   message, type d'exception, code, durée, source. ATLAS PC en garde l'**idée** (un
+   résultat par source, jamais d'exception qui remonte) sans en faire une interface :
+   un simple type de résultat suffit.
 2. **Le plafond de temps par requête** (`OperationTimeoutSec = 12`).
 3. **Le repli explicite et signalé** (Get-Volume → Win32_LogicalDisk + avertissement).
-4. **Le statut par champ** et la distinction *rapporté / normalisé / inféré*.
+4. **Le statut par champ.** Retenu sous une forme minimale : une valeur absente
+   s'affiche `—`, et une zone non lue devient une ligne de `scan_issue`.
 5. **La liste des limites matérielles réelles** (`docs/ADMIN_AND_LIMITATIONS.md`) :
    VRAM réelle, canaux mémoire, SMART derrière un pont USB, EDID, Secure Boot — à
    recopier comme **documentation des limites d'ATLAS PC**, pas comme code.
-6. **Le HTML autonome** sans ressource externe.
+6. ~~Le HTML autonome sans ressource externe.~~ **Écarté** : ATLAS PC n'a plus de
+   fonction de rapport.
 
 ## 10. Ce qu'il ne faut pas reprendre
 
@@ -254,6 +260,12 @@ Deux enseignements pour ATLAS PC :
 C'est le dépôt qui apporte le plus **sur le fond méthodologique** : comment
 interroger Windows sans mentir sur ce qu'on n'a pas pu lire. C'est aussi celui dont
 la technologie est la moins transposable. Verdict : **modèle pour la couche de
-collecte et pour le rapport, contre-exemple pour l'interface et l'exécution.**
+collecte, contre-exemple pour l'interface et l'exécution.**
+
+> **Révision du 17/11/2026 — périmètre simplifié.** C'est désormais la **première
+> source d'inspiration** du dossier (livrable 2, § 6), parce que la rubrique
+> « Ordinateur » pèse plus lourd dans un périmètre réduit. Deux apports précis sont
+> retenus : le `try/catch` **par requête** avec délai borné, et l'affichage explicite
+> d'une valeur absente. Son rapport HTML autonome, lui, est hors périmètre.
 
 Voir notation comparée : `docs/05-tableau-comparatif.md`.

@@ -4,6 +4,11 @@
 (matériel, Windows, fichiers, logiciels, outils de développement, projets), avec
 historique et comparaison d'inventaires.
 
+> **Version 2.0 — 17 novembre 2026.** Périmètre simplifié : un seul projet, dix tables
+> SQLite, sept rubriques, cinq étapes. Ce qui a été retiré a été **supprimé**, pas
+> reporté — la liste et les motifs sont dans
+> [`docs/00-lisez-moi.md`](docs/00-lisez-moi.md) § 5.
+
 **Machine cible** : Dell OptiPlex 780 · Windows 10 22H2 x64 · 6 Go de RAM · disque dur
 mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits administrateur.
 
@@ -16,7 +21,7 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 
 | Document | Contenu |
 |---|---|
-| [`docs/00-lisez-moi.md`](docs/00-lisez-moi.md) | Sommaire, méthode, **synthèse et décision** — commencer ici |
+| [`docs/00-lisez-moi.md`](docs/00-lisez-moi.md) | Sommaire, méthode, **synthèse, décision et ce qui a été supprimé** — commencer ici |
 | [`docs/01-analyse-neotreescan.md`](docs/01-analyse-neotreescan.md) | Analyse du dépôt NeoTreescan (Apache-2.0, C#/WPF) |
 | [`docs/02-analyse-diskplot.md`](docs/02-analyse-diskplot.md) | Analyse du dépôt Diskplot (MIT, Electron/TypeScript) |
 | [`docs/03-analyse-system-inspector.md`](docs/03-analyse-system-inspector.md) | Analyse du dépôt LouisMahdi System Inspector (MIT, PowerShell) |
@@ -24,12 +29,11 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 | [`docs/05-tableau-comparatif.md`](docs/05-tableau-comparatif.md) | Comparaison technique, fonctionnelle et notation pondérée |
 | [`docs/06-licences-et-risques.md`](docs/06-licences-et-risques.md) | Licences, compatibilité, inspiration vs copie |
 | [`docs/07-architecture-cible.md`](docs/07-architecture-cible.md) | Architecture recommandée et justification de chaque choix |
-| [`docs/08-modele-sqlite.md`](docs/08-modele-sqlite.md) | Schéma de base, requêtes de comparaison, rétention |
-| [`docs/09-interface.md`](docs/09-interface.md) | Maquette et spécification des huit rubriques |
+| [`docs/08-modele-sqlite.md`](docs/08-modele-sqlite.md) | Schéma de base (10 tables), requêtes de comparaison, rétention manuelle |
+| [`docs/09-interface.md`](docs/09-interface.md) | Maquette et spécification des sept rubriques |
 | [`docs/10-arborescence-projet.md`](docs/10-arborescence-projet.md) | Organisation prévue du futur code source |
-| [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Jalons, tests, critères de validation |
+| [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Cinq étapes, tests, critères de validation |
 | [`docs/12-risques-et-limites.md`](docs/12-risques-et-limites.md) | Risques, limites, points à vérifier |
-| [`docs/13-registre-inspiration.md`](docs/13-registre-inspiration.md) | Registre à tenir pendant le développement |
 
 Maquette indicative : [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.png)
 
@@ -39,11 +43,12 @@ Maquette indicative : [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.
 
 | Sujet | Choix | Raison dominante |
 |---|---|---|
-| Runtime | **.NET Framework 4.8** (`net48`), projets au format SDK | présent dans Windows 10 22H2, aucun runtime à installer, démarrage à froid rapide sur disque mécanique |
+| Projet | **un seul projet WPF**, dossiers par responsabilité | moins de couches, moins de fichiers |
+| Runtime | **.NET Framework 4.8** (`net48`), cible **unique**, projet au format SDK | présent dans Windows 10 22H2, aucun runtime à installer, démarrage à froid rapide sur disque mécanique |
 | Interface | **WPF**, thème clair sobre, `DataGrid` virtualisé | mature, DPI-aware, pas de dépendance graphique lourde |
-| Base | **SQLite** | fichier unique, comparaison en SQL, aucun service |
-| Scan | **un seul travailleur**, énumération en flux, écriture par lots | disque mécanique bi-cœur, mémoire bornée |
-| Historique | **modèle relationnel normalisé** par inventaire | comparaison fichier par fichier, sans recopier le contenu |
+| Base | **SQLite, 10 tables** | fichier unique, comparaison en SQL, aucun service |
+| Scan | **un seul travailleur**, API standard .NET, écriture par lots de 500 | disque mécanique bi-cœur, mémoire bornée |
+| Historique | comparaison par **chemin complet normalisé**, suppression **manuelle** | comparaison fichier par fichier, sans hachage ni purge automatique |
 | Licence du futur projet | **MIT** (ou Apache-2.0 si publication communautaire) | compatible avec les inspirations permises, exclut toute copie GPL |
 
 Les quatre dépôts étudiés ne couvrent **aucun** la fonction « logiciels installés /
@@ -51,12 +56,15 @@ outils de développement / projets », et **aucun** ne propose d'historique comp
 fichier par fichier : ces parties sont donc à concevoir, et c'est ce que fait ce
 dossier.
 
+Le logiciel est **local, gratuit, hors ligne, en lecture seule** sur les fichiers et sur
+Windows. Il ne désinstalle rien, ne nettoie rien, n'exporte rien.
+
 ---
 
 ## Structure du dépôt
 
 ```
-docs/      le dossier technique (9 livrables + index + registre)
+docs/      le dossier technique (9 livrables + index)
 assets/    maquette de l'interface
 ```
 

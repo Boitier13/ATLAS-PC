@@ -293,4 +293,10 @@ moteur admirable, une licence interdisant la copie, une base de code impossible 
 reproduire seul, et aucune des fonctions « historique / comparaison / logiciels /
 outils / projets » qui constituent le cœur d'ATLAS PC.
 
+> **Révision du 17/11/2026 — périmètre simplifié.** La V1 n'emprunte plus rien à son
+> moteur : ni `NtQueryDirectoryFile`, ni MFT, ni taille de cluster, ni parallélisme. Il
+> reste **une idée de méthode**, conservée telle quelle : nommer explicitement les
+> zones non analysées (`ScanOutcome`) et refuser d'en tirer une conclusion — ce que le
+> livrable 5 traduit par la catégorie « disparitions non vérifiables ».
+
 Voir notation comparée : `docs/05-tableau-comparatif.md`.

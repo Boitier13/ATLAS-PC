@@ -226,11 +226,14 @@ excellent et directement applicable si ATLAS PC ajoute un treemap.
    d'objets.
 2. **Deux sortes d'arrêt** : conserver le partiel / tout jeter.
 3. **Aperçu progressif** dont le coût est plafonné par rapport au scan lui-même.
-4. **Treemap borné par les pixels** et repli en « reste ».
-5. **Instantané compact + purge** : un historique doit avoir une politique de
-   rétention, sinon il remplit le disque qu'il prétend surveiller.
-6. **Validation du nom de fichier** avant lecture d'un instantané.
-7. **Un seul module `shared`** comme contrat entre moteur et interface.
+4. ~~Treemap borné par les pixels~~ — **écarté** : ATLAS PC n'a pas de treemap.
+5. **Un historique doit être maîtrisé**, sinon il remplit le disque qu'il prétend
+   surveiller. L'idée est retenue, la solution non : ATLAS PC affiche la taille de sa
+   base et laisse l'utilisateur supprimer un inventaire, sans purge automatique.
+6. ~~Validation du nom de fichier avant lecture d'un instantané~~ — sans objet, il n'y
+   a plus d'instantané.
+7. **Un seul module `shared`** comme contrat entre moteur et interface : retenu sous
+   une forme plus simple — les dossiers `Scanning` et `Data` d'un projet unique.
 
 ### À ne pas reprendre
 
@@ -259,9 +262,15 @@ excellent et directement applicable si ATLAS PC ajoute un treemap.
 
 ## 10. Note pour ATLAS PC
 
-Diskplot est la **meilleure source d'idées sur le moteur et l'historique**, et le
-**contre-exemple sur la plateforme**. Sa contribution conceptuelle majeure est double :
-prouver qu'un scan peut tenir en quelques dizaines de Mo, et rappeler qu'un historique
-sans politique de rétention devient un problème.
+Diskplot est la **meilleure source d'idées sur l'historique** et le **contre-exemple
+sur la plateforme**. Sa contribution conceptuelle majeure est double : prouver qu'un
+scan peut tenir en quelques dizaines de Mo, et rappeler qu'un historique doit être
+maîtrisé — ATLAS PC le fait par **suppression manuelle**, sans purge automatique.
+
+> **Révision du 17/11/2026 — périmètre simplifié.** Le treemap, les instantanés
+> binaires compressés et le seuil de 8 Mio sont écartés. Ce qui est retenu tient en une
+> idée : la comparaison de deux inventaires avec un sens explicite (A → B) et un
+> périmètre annoncé. Le livrable 5 la réalise en SQL sur le chemin complet, sans
+> recopier son modèle de données.
 
 Voir notation comparée : `docs/05-tableau-comparatif.md`.

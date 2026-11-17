@@ -54,26 +54,36 @@ Comparaison établie **sur le code examiné**, aux commits indiqués dans
 
 ---
 
-## 4. Couverture fonctionnelle du cahier des charges ATLAS PC
+## 4. Couverture des **sept rubriques** de la V1 simplifiée
 
 Légende : ● fourni · ◐ partiel · ○ absent
 
-| Fonction V1 | NeoTreescan | Diskplot | System Inspector | WinDirStat |
+| Rubrique V1 | NeoTreescan | Diskplot | System Inspector | WinDirStat |
 |---|---|---|---|---|
-| 1. Ordinateur (fabricant, modèle, CPU, RAM, GPU, disques, partitions, Windows, BIOS) | ○ | ○ | ● | ○ (partiel, via WMI pour quelques propriétés) |
-| 2. Fichiers (chemins, extensions, tailles, dates, espace occupé) | ● | ● | ○ | ● |
-| 3. Logiciels installés / portables / éditeurs | ○ | ○ | ○ | ○ |
-| 4. Outils de dev (Python, pip, Node, npm, Git, Tesseract) | ○ | ○ | ○ | ○ |
-| 5. Projets (package.json, requirements.txt, pyproject.toml, dépôts Git) | ○ | ○ | ○ | ○ |
-| 6. Rapports HTML / CSV / JSON | ◐ (Excel seulement) | ○ | ◐ (TXT/JSON/HTML/ZIP, pas de CSV) | ◐ (CSV/JSON, pas de HTML) |
-| 7. Historique multi-inventaires + comparaison | ○ | ◐ (instantanés, seuil 8 Mio, dossiers) | ○ | ○ |
-| Interface à menu latéral | ○ (barre d'outils + onglets) | ○ (barre + panneaux) | ○ (fenêtre unique) | ○ (menus classiques) |
+| 1. **Tableau de bord** | ○ | ◐ (aperçu + treemap) | ◐ (synthèse texte) | ◐ (treemap + liste) |
+| 2. **Ordinateur** (fabricant, modèle, CPU, RAM, GPU, BIOS, Windows, disques, volumes) | ○ | ○ | ● | ◐ (quelques propriétés) |
+| 3. **Fichiers** (dossier, nom, extension, taille, date) | ● | ● | ○ | ● |
+| 4. **Logiciels installés** | ○ | ○ | ○ | ○ |
+| 5. **Outils de dev** (Python, pip, Node, npm, Git, Tesseract) | ○ | ○ | ○ | ○ |
+| 6. **Développement** (projets Python/Node, dépôt Git) | ○ | ○ | ○ | ○ |
+| 7. **Évolution** (deux inventaires, ajouts/suppressions/modifs/espace) | ○ | ◐ (dossiers + fichiers ≥ 8 Mio) | ○ | ○ |
+
+| Exigence transverse | NeoTreescan | Diskplot | System Inspector | WinDirStat |
+|---|---|---|---|---|
+| Menu latéral | ○ (barre d'outils + onglets) | ○ (barre + panneaux) | ○ (fenêtre unique) | ○ (menus classiques) |
 | Lecture seule garantie | ● | ◐ (supprime vers la corbeille) | ● | ◐ (nettoie, déplace, supprime) |
 | Sans administrateur | ● (mode admin optionnel) | ● | ● | ● (mode élevé optionnel) |
 | Hors ligne / sans compte | ● | ● | ● | ● |
+| Fonctionne sur 6 Go + disque mécanique | ◐ | ○ | ● | ● |
 
-**Aucun des quatre ne couvre les fonctions 3, 4 et 5.** Ce sont donc des
+**Aucun des quatre ne couvre les rubriques 4, 5 et 6.** Ce sont donc des
 développements entièrement neufs, et les plus spécifiques à ATLAS PC.
+La rubrique 7 n'est approchée que par Diskplot, et à un seuil de 8 Mio qui n'a aucune
+raison d'être dans ATLAS PC.
+
+> Les rapports et exports ne figurent plus dans ce tableau : **la fonction est retirée
+> du périmètre** (voir `docs/00-lisez-moi.md` § 5.6). Le fait que trois dépôts en
+> proposent un n'est plus un argument.
 
 ---
 
@@ -110,20 +120,38 @@ développements entièrement neufs, et les plus spécifiques à ATLAS PC.
 
 ---
 
-## 6. Notation pour ATLAS PC
+## 6. Notation pour ATLAS PC (périmètre simplifié)
 
-Critères pondérés selon les contraintes du projet. Les notes sont un **jugement
+Critères pondérés selon les contraintes réelles du projet. Les notes sont un **jugement
 argumenté** sur une échelle de 1 à 5, pas une mesure.
 
 | Critère (poids) | NeoTreescan | Diskplot | System Inspector | WinDirStat |
 |---|---|---|---|---|
 | A. Adéquation au PC cible — 25 | 3 | 1 | 4 | 3 |
-| B. Couverture du cahier des charges — 25 | 2 | 1 | 2 | 1 |
-| C. Valeur d'inspiration technique — 20 | 5 | 5 | 4 | 4 |
-| D. Facilité de transposition vers C#/WPF — 15 | 5 | 3 | 3 | 1 |
+| B. Couverture du périmètre réduit — 25 | 2 | 3 | 3 | 2 |
+| C. Valeur d'inspiration restante — 20 | 4 | 4 | 4 | 3 |
+| D. Facilité de transposition vers **un seul** projet C#/WPF — 15 | 5 | 2 | 3 | 1 |
 | E. Licence et réutilisation — 10 | 5 | 5 | 5 | 1 |
 | F. Maturité, tests, documentation — 5 | 2 | 3 | 4 | 5 |
-| **Total pondéré / 100** | **72** | **52** | **69** | **46** |
+| **Total pondéré / 100** | **68** | **55** | **74** | **47** |
+
+### Pourquoi les notes changent par rapport au premier dossier
+
+| Note | v1.0 | v2.0 | Motif |
+|---|---|---|---|
+| B · NeoTreescan | 2 | 2 | inchangé sur les fichiers, mais son export ne compte plus |
+| B · Diskplot | 1 | **3** | c'est le seul qui traite la comparaison d'inventaires, rubrique 7 désormais centrale |
+| B · System Inspector | 2 | **3** | la rubrique « Ordinateur » pèse plus lourd dans un périmètre réduit à sept rubriques |
+| B · WinDirStat | 1 | 2 | fournit la rubrique Fichiers, rien d'autre |
+| C · NeoTreescan | 5 | **4** | son moteur Win32 n'est plus une inspiration retenue : la V1 part de l'API standard |
+| C · Diskplot | 5 | **4** | son treemap et ses instantanés binaires sont écartés |
+| C · WinDirStat | 4 | **3** | taille de cluster et MFT sortent du périmètre |
+| D · Diskplot | 3 | **2** | la transposition depuis une application Electron est moins rentable qu'avant |
+
+**Conséquence** : System Inspector passe devant NeoTreescan. Ce n'est pas une
+incohérence avec le premier dossier, c'est l'effet mécanique du changement de
+périmètre — la collecte matérielle prend le pas sur le moteur de scan, qui n'est plus
+le point difficile.
 
 Justification des notes les plus discutables :
 
@@ -132,19 +160,20 @@ Justification des notes les plus discutables :
   obtient 1 à cause du moteur Chromium sur 6 Go et disque mécanique ; NeoTreescan et
   WinDirStat obtiennent 3 (l'un démarre lentement depuis un EXE de 65 Mo, l'autre est
   léger mais paramétré pour des machines musclées).
-- **B (couverture)** : personne ne dépasse 2/5 ; System Inspector couvre en
-  profondeur une seule des huit rubriques, NeoTreescan couvre entièrement la rubrique
-  « Fichiers » et une partie des rapports.
+- **B (couverture)** : personne ne dépasse 3/5 ; System Inspector couvre en profondeur
+  une seule rubrique, Diskplot une seule aussi (l'évolution, partiellement).
 - **E (licence)** : 1 pour WinDirStat n'est pas un jugement sur le logiciel mais sur
   l'impossibilité de réutiliser quoi que ce soit.
 
 ### Conclusion du classement
 
-**NeoTreescan** est le meilleur **modèle d'application**, **System Inspector** le
-meilleur **modèle de collecte**, **Diskplot** le meilleur **modèle de mémoire et
-d'historique**, **WinDirStat** la meilleure **référence de moteur** — et aucun n'est
-un point de départ réutilisable tel quel.
+**System Inspector** est le meilleur **modèle de collecte**, **NeoTreescan** le modèle
+d'application le plus proche, **Diskplot** le seul à avoir pensé la comparaison,
+**WinDirStat** la meilleure référence de moteur — et aucun n'est un point de départ
+réutilisable tel quel.
 
-La recommandation qui suit (livrable 4) combine ces quatre apports sans copier de
-code : structure d'application de NeoTreescan, contrat de collecte de System
-Inspector, sobriété mémoire de Diskplot, rigueur d'énumération de WinDirStat.
+La recommandation (livrable 4) emprunte donc trois idées, et aucune ligne de code :
+structure d'écran et manifeste de NeoTreescan, méthode de collecte dégradée de System
+Inspector, organisation de la comparaison de Diskplot. Le moteur Win32 de NeoTreescan
+et de WinDirStat est délibérément **écarté** au profit de l'API standard .NET, quitte à
+y revenir si la mesure l'exige.

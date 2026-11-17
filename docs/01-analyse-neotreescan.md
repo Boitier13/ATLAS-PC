@@ -224,12 +224,14 @@ Détail complet : `docs/06-licences-et-risques.md`.
 
 ### À retenir comme **inspiration** (idées, pas code)
 
-1. La séparation `Core` (sans UI) / `App` (WPF) — c'est exactement le découpage
-   qu'ATLAS PC doit avoir, en plus riche.
-2. `FindFirstFileExW` + `FindExInfoBasic` + `FIND_FIRST_EX_LARGE_FETCH` + `SafeHandle` :
-   c'est le bon trio pour énumérer vite et proprement.
-3. Le préfixe `\\?\` avec concaténation manuelle pour dépasser 260 caractères.
-4. `IProgress<ScanProgress>` + `CancellationToken` : le contrat d'un moteur annulable.
+1. La séparation logique/interface — ATLAS PC la garde, mais par **dossiers** dans un
+   seul projet (`Scanning/` ignore WPF).
+2. ~~`FindFirstFileExW` + `FIND_FIRST_EX_LARGE_FETCH`~~ — **écarté** en V1 : l'API
+   standard .NET suffit, et cette interop reste le plan de repli si la mesure l'exige.
+3. ~~Le préfixe `\\?\`~~ — écarté avec l'interop ; les chemins longs échouent
+   désormais **explicitement** dans `scan_issue` plutôt que silencieusement.
+4. `IProgress<ScanProgress>` + `CancellationToken` : le contrat d'un moteur annulable,
+   conservé sous la forme d'un `Action<ScanProgress>` et d'un jeton.
 5. Chargement paresseux des nœuds dans l'arbre.
 6. Le manifeste : `asInvoker`, `PerMonitorV2`, `longPathAware`.
 
@@ -242,8 +244,9 @@ Détail complet : `docs/06-licences-et-risques.md`.
 | `MaxDegreeOfParallelism = ProcessorCount` | Contre-productif sur disque mécanique bi-cœur |
 | `MftScanner` | C'est un stub ; ne pas croire au MFT |
 | Treemap maison | Coût de développement élevé pour un besoin non exigé |
+| Le découpage en **projets** séparés (`Core`, `App`) | ATLAS PC reste sur un projet unique |
 | Cible `net9.0-windows` | Runtime **hors support depuis le 10/11/2026** |
-| Export Excel comme seul format | Le cahier des charges exige HTML, CSV, JSON |
+| Export Excel comme seul format | ATLAS PC ne comporte **aucun** export |
 
 ---
 
@@ -262,9 +265,15 @@ Détail complet : `docs/06-licences-et-risques.md`.
 
 ## 10. Note pour ATLAS PC
 
-NeoTreescan est le **meilleur modèle d'architecture applicative** des quatre
-dépôts (séparation Core/UI, WPF, interop Win32 propre) et le **pire modèle de données**
-pour la machine cible. La synthèse est simple : **reprendre la forme, pas le fond**
-— et surtout pas le runtime.
+NeoTreescan est le plus proche des quatre dépôts de la forme visée (WPF, séparation
+écran/logique, manifeste soigné) et le **pire modèle de données** pour la machine
+cible. La synthèse est simple : **reprendre la forme, pas le fond** — et surtout pas le
+runtime.
+
+> **Révision du 17/11/2026 — périmètre simplifié.** NeoTreescan n'est plus le modèle
+> d'application retenu : le livrable 4 part d'**un seul projet** et, surtout, de l'**API
+> standard .NET** plutôt que de son interop Win32. Ce qui reste emprunté se limite à
+> trois idées : organisation des écrans, manifeste (`asInvoker`, `PerMonitorV2`, chemins
+> longs) et comptage des dossiers illisibles. Son export Excel est hors périmètre.
 
 Voir notation comparée : `docs/05-tableau-comparatif.md`.
