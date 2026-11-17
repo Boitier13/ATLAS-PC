@@ -9,14 +9,13 @@ machine cible**, et ce qu'il faut faire à la main.
 > compilé ni lancé ici**. Les vérifications réellement effectuées ici sont listées ; les
 > autres sont explicitement à faire de votre côté.
 >
-> **Premier retour du PC (17/11)** : la compilation de l'étape 1 réussit, **0 erreur et
-> 0 avertissement**. Un défaut de liaison empêchait le lancement ; il est corrigé au
-> § 1.5. Une compilation propre ne vaut pas validation du rendu : les points du § 1.4
-> restent à observer.
+> **Retour du PC (17/11)** : compilation **0 erreur, 0 avertissement** (MSBuild 17.14.60).
+> Un défaut de liaison empêchait le lancement, corrigé au § 1.5. La recette sur
+> Windows 10 a ensuite été **entièrement réussie** : l'étape 1 est **validée** (§ 1.6).
 
 ---
 
-## Étape 1 — Application et interface de base (en cours)
+## Étape 1 — Application et interface de base — **validée le 17/11 sur Windows 10**
 
 ### 1.1 Ce qui a été écrit
 
@@ -65,14 +64,15 @@ Total : 15 fichiers C#, 6 fichiers XAML, 1 fichier SQL, 2 fichiers de configurat
 | `x:Class` | chaque vue a son code-behind, espace de noms cohérent |
 
 **Ce qui n'a pas pu être vérifié ici** : compilation, exécution, rendu visuel, démarrage
-à froid, mémoire. La compilation a depuis été validée sur le PC (§ 1.4) ; l'exécution
-reste à confirmer. Ce sont les critères de sortie de l'étape 1.
+à froid, mémoire. Compilation, exécution, navigation et persistance ont depuis été
+validées sur Windows 10 (§ 1.6). Deux mesures restent à relever : démarrage à froid et
+mémoire au repos.
 
 ### 1.4 À faire sur le PC (Visual Studio 2022)
 
-**État au 17/11** : étapes 1 et 2 ci-dessous **faites** — compilation réussie, sans erreur
-ni avertissement. Le lancement échouait sur la liaison du § 1.5, désormais corrigée.
-Restent les points 2 à 5 du tableau de contrôle.
+**État au 17/11 : protocole appliqué, recette réussie** — voir les résultats au § 1.6.
+Les points 1, 2 et 5 du tableau ci-dessous sont confirmés ; les points 3 (démarrage à
+froid) et 4 (mémoire au repos) n'ont pas été mesurés.
 
 1. Ouvrir `ATLAS-PC.sln`. Si Visual Studio signale que le projet n'est pas chargé :
    vérifier que la charge de travail **« Développement .NET Desktop »** est installée.
@@ -138,10 +138,61 @@ source a un setter public. Elle s'appliquera notamment à la zone de recherche d
 l'étape 3B (`TextBox.Text`), où la saisie sera liée en `TwoWay` à une propriété
 modifiable.
 
-**Reste à vérifier sur le PC** : les cinq points du § 1.4, plus la valeur affichée dans
-le bandeau (elle doit passer de 0 à 100 % puis disparaître).
+**Vérifié sur le PC le 17/11** : la fenêtre s'ouvre, la progression s'affiche de 0 à
+100 % puis le bandeau disparaît (§ 1.6). Aucune autre erreur de liaison.
 
-### 1.6 Ce qui n'est pas encore là, volontairement
+### 1.6 Recette sur Windows 10 — 17/11 : **étape 1 validée**
+
+Environnement : Windows 10, Visual Studio 2022, **MSBuild 17.14.60**, solution
+`ATLAS-PC.sln` de la branche `arena/f4389f9f-atlas-pc` au commit `2c15ca3`.
+
+| # | Point de recette | Résultat observé | Verdict |
+|---|---|---|---|
+| 1 | Compilation de `ATLAS-PC.sln` | réussie, **0 avertissement, 0 erreur** | conforme |
+| 2 | Ouverture de l'application | aucune erreur, aucune exception | conforme |
+| 3 | Barre latérale | les **7 rubriques** s'affichent | conforme |
+| 4 | Navigation | les 7 rubriques se chargent et se quittent normalement | conforme |
+| 5 | « Lancer un inventaire » | la simulation démarre, bandeau de progression visible | conforme |
+| 6 | Progression | barre et bouton « Annuler » affichés, progression puis disparition | conforme |
+| 7 | Historique | une ligne par essai, statut **Annulé**, 0 fichier, 0 octet, note de simulation | conforme |
+| 8 | Persistance | fermeture puis redémarrage : l'historique est toujours là | conforme |
+| 9 | Base de données | `%LOCALAPPDATA%\ATLAS PC\atlas.db` créée, **4 Ko → 112 Ko** | conforme |
+
+**Ce que ce point 7 démontre.** La simulation n'écrit aucune donnée de fichier : la ligne
+est créée avec `roots_count = 0`, aucune `scan_root` n'est insérée, les compteurs restent
+à zéro, le statut est `cancelled` et la note dit explicitement qu'aucun disque n'a été
+parcouru — ou, si l'utilisateur a cliqué « Annuler », qu'il a annulé la simulation.
+Aucune ligne de l'historique ne peut donc être prise pour un inventaire réel.
+
+**Ce que le point 8 démontre.** Trois mécanismes sont validés d'un coup : le chemin de la
+base, l'idempotence du script de schéma (aucune erreur au second démarrage), et le
+nettoyage `DeleteAbandoned` — qui supprime les lignes `running` mais **conserve** les
+lignes `cancelled`. C'est le comportement voulu : un inventaire annulé par l'utilisateur
+est un fait historique, pas un déchet.
+
+**Ce que le point 9 démontre.** Une base neuve pèse 112 Ko alors qu'elle ne contient que
+des lignes d'inventaire. C'est normal et attendu : les 10 tables et 14 index occupent
+chacun au moins une page de 4 Ko, et le mode WAL ajoute un journal. **112 Ko est donc le
+plancher d'une base ATLAS PC**, quelle que soit la machine. Cela ne change pas l'estimation
+du plan (85–110 Mo pour 400 000 fichiers) : ce volume est dominé par les lignes, pas par
+le squelette.
+
+**Deux mesures du protocole n'ont pas été communiquées :**
+
+| Mesure | Seuil | État |
+|---|---|---|
+| Démarrage à froid (5 essais après redémarrage) | < 3 s | **non relevé** — non bloquant, à faire au prochain lancement |
+| Mémoire au repos | < 130 Mo | **non relevé** — non bloquant, à faire au prochain lancement |
+
+Elles ne remettent pas en cause la validation fonctionnelle, mais le plan en a fait un
+point de décision (au-delà de 5 s ou 200 Mo, le choix de WPF est réexaminé). Elles seront
+relevées avant l'étape 3A, sans recompilation : Gestionnaire des tâches au repos, et
+chronomètre du double-clic à la fenêtre affichée.
+
+**Décision.** Étape 1 **clôturée** le 17/11. Le code de ce jalon est gelé au commit
+`2c15ca3`, correctif de liaison inclus. Aucune modification du code n'a été faite depuis.
+
+### 1.7 Ce qui n'est pas encore là, volontairement
 
 - les six rubriques affichent un texte d'attente, sans données ;
 - les quatre cartes du tableau de bord affichent `—` ;

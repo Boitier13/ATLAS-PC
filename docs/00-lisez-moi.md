@@ -25,12 +25,13 @@ mécanique · 1440 × 900 · hors ligne · gratuit · sans droits administrateur
    développement supplémentaire (3A/3B) et une interface plus riche pour cette seule
    rubrique. Détail au § 5.9.
 
-Le **dossier** est complet et validé. Le **développement a commencé** : l'étape 1
-(coquille de l'application et base de données) est écrite dans `src/AtlasPc/`, prête à
-être compilée sous Windows avec Visual Studio 2022. Le suivi, les décisions prises
-pendant l'écriture et les vérifications à faire sur le PC sont dans
-[`14-journal-de-developpement.md`](14-journal-de-developpement.md). Aucun dépôt étudié
-n'a été modifié.
+Le **dossier** est complet et validé. Le **développement a commencé** : l'**étape 1**
+(coquille de l'application et base de données) est écrite dans `src/AtlasPc/` et
+**validée sur Windows 10 le 17/11** — compilation sans erreur ni avertissement, sept
+rubriques navigables, inventaire simulé et historique persistant. Le suivi, les décisions
+prises pendant l'écriture et le détail de la recette sont dans
+[`14-journal-de-developpement.md`](14-journal-de-developpement.md). L'étape 2 n'est pas
+commencée. Aucun dépôt étudié n'a été modifié.
 
 ---
 
@@ -149,7 +150,7 @@ retiré du dossier, du périmètre et du plan — sauf mention explicite « repo
 | Supprimé | Remplacé par | Motif |
 |---|---|---|
 | 20 tables | **10 tables** (v2.0) ; `scan_root` ajoutée en v2.1, `disk` fusionnée en v2.2 | |
-| `hw_computer`, `hw_cpu`, `hw_memory_module`, `hw_gpu`, `hw_disk`, `hw_partition`, `hw_volume`, `hw_bios`, `os_info` (9 tables) | **3 tables** : `computer`, `disk`, `volume` | une ligne de matériel n'a pas besoin de neuf tables |
+| `hw_computer`, `hw_cpu`, `hw_memory_module`, `hw_gpu`, `hw_disk`, `hw_partition`, `hw_volume`, `hw_bios`, `os_info` (9 tables) | **2 tables** : `computer`, `volume` | une ligne de matériel n'a pas besoin de neuf tables ; l'ancienne table `disk` est fusionnée dans `volume` depuis la v2.2 |
 | `inventory_scope` (multi-racines) | `inventory.root_path`, puis **`scan_root`** en v2.1 | une seule racine suffisait tant qu'il n'y avait pas de recherche ; voir § 5.9 |
 | `collect_status` et `field_note` (traçabilité par champ) | `—` affiché, `scan_issue` pour les erreurs de fichiers | coût de mise en œuvre très supérieur au bénéfice pour un outil personnel |
 | `file_type_stat`, `age_bucket_stat`, `size_bucket_stat` (statistiques pré-calculées) | **requêtes `GROUP BY` à la demande** | quelques centaines de lignes de code en moins, à mesurer |

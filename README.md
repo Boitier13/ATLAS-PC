@@ -16,7 +16,8 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 
 > Ce dépôt contient le **dossier de décision** et le **début du développement**.
 > Le code correspond à l'**étape 1** du plan (coquille de l'application et base de
-> données) ; il n'a été ni compilé ni exécuté ici : voir
+> données), **validée sur Windows 10 le 17/11** : compilation sans erreur ni
+> avertissement, sept rubriques navigables, historique persistant. Détail de la recette :
 > [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md).
 > Aucun dépôt étudié n'a été modifié.
 
@@ -40,7 +41,7 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 | [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Cinq étapes (dont 3A scan / 3B rubrique Fichiers), tests, critères |
 | [`docs/12-risques-et-limites.md`](docs/12-risques-et-limites.md) | Risques, limites, points à vérifier |
 | [`docs/13-verifications.md`](docs/13-verifications.md) | **Vérifications de la v2.1** : cinq points, constats, corrections |
-| [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md) | **Journal du développement** : étape 1, décisions, à vérifier sur le PC |
+| [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md) | **Journal du développement** : étape 1 (validée le 17/11), décisions, recette |
 
 Maquettes : [`assets/maquette-fichiers.png`](assets/maquette-fichiers.png) (la rubrique centrale) et [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.png) (tableau de bord)
 

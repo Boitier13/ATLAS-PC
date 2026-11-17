@@ -91,7 +91,7 @@ src/AtlasPc/
 
 ```
 1. Créer la ligne `inventory` (status = running)
-2. Collecter le matériel et Windows            → tables `computer`, `disk`, `volume`
+2. Collecter le matériel et Windows            → tables `computer`, `volume`
 3. Collecter logiciels, outils, projets        → tables `software`, `tool`, `project`
 4. Pour chaque disque coché par l'utilisateur :
      4a. créer la ligne `scan_root` (status = running)

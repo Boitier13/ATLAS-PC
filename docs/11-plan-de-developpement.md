@@ -14,7 +14,7 @@ pas des engagements.
 
 | Étape | Objet | Durée | À la fin, on peut… |
 |---|---|---|---|
-| **1** | Application et interface de base | 3 j | lancer ATLAS PC, naviguer dans les 7 rubriques, créer un inventaire vide |
+| **1** | Application et interface de base — **validée le 17/11** | 3 j | lancer ATLAS PC, naviguer dans les 7 rubriques, créer un inventaire vide |
 | **2** | Inventaire matériel et Windows | 3 j | consulter la fiche complète du PC |
 | **3A** | Scan des fichiers et stockage | 5 j | lancer un inventaire de `C:` et `D:` et le voir progresser |
 | **3B** | **Rubrique Fichiers** : exploration, recherche, filtres, ouverture | 5 j | **retrouver un fichier par son nom, filtrer, ouvrir, copier son chemin** |
@@ -39,19 +39,24 @@ projet s'arrêtait après 3B, ATLAS PC serait déjà utile.
 
 ---
 
-## 2. Étape 1 — Application et interface de base (3 j)
+## 2. Étape 1 — Application et interface de base (3 j) — **validée le 17/11**
 
 | Livrable | Détail |
 |---|---|
 | Solution et projet unique | `net48`, `WinExe`, `UseWPF`, un seul paquet `System.Data.SQLite.Core` |
 | `ShellWindow` | barre latérale 7 entrées, barre supérieure, zone de contenu, badge d'état |
 | `Themes/Theme.xaml` | neutres, rampe d'accent, **couleurs de familles**, couleurs d'état |
-| 7 vues vides | chacune avec son état vide et son titre |
+| Vues des rubriques à venir | une vue de remplacement unique (`PlaceholderView`) portant le titre et l'état vide de la rubrique ; chaque vue réelle la remplace à son étape |
 | `Database.cs` + `Schema.sql` | création de la base et du **schéma complet** (10 tables, idempotent) : pas de migration |
 | `InventoryStore` | créer, lister, clôturer, supprimer un inventaire ; statut `running` pendant le parcours |
 | Bandeau de progression | factice, pour valider sa place dans la mise en page |
 
-**Tests** : démarrage à froid (5 essais), navigation, création/suppression d'inventaire.
+**Tests** : navigation, création et suppression d'inventaire, persistance après
+redémarrage — **réussis le 17/11**. Démarrage à froid et mémoire au repos : non relevés.
+
+**Statut.** Étape clôturée le 17/11 sur Windows 10 (MSBuild 17.14.60, 0 erreur,
+0 avertissement). Recette détaillée : `14-journal-de-developpement.md` § 1.6. Le code du
+jalon est gelé au commit `2c15ca3`.
 
 **Critères de sortie**
 - démarrage à froid **< 3 s** ; mémoire au repos **< 130 Mo** ;
@@ -69,7 +74,7 @@ projet s'arrêtait après 3B, ATLAS PC serait déjà utile.
 | Livrable | Détail |
 |---|---|
 | `ComputerCollector` | 7 requêtes WMI + registre, un `try/catch` par requête, délai 10 s |
-| Tables `computer`, `disk`, `volume` | écriture d'un inventaire matériel |
+| Tables `computer`, `volume` | écriture d'un inventaire matériel |
 | Vue **Ordinateur** | 6 fiches + tableau disques/volumes avec barre de remplissage colorée |
 | Valeurs absentes | `—` + info-bulle, jamais `0` |
 
