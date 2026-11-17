@@ -62,7 +62,10 @@ Légende : ● fourni · ◐ partiel · ○ absent
 |---|---|---|---|---|
 | 1. **Tableau de bord** | ○ | ◐ (aperçu + treemap) | ◐ (synthèse texte) | ◐ (treemap + liste) |
 | 2. **Ordinateur** (fabricant, modèle, CPU, RAM, GPU, BIOS, Windows, disques, volumes) | ○ | ○ | ● | ◐ (quelques propriétés) |
-| 3. **Fichiers** (dossier, nom, extension, taille, date) | ● | ● | ○ | ● |
+| 3a. **Fichiers** : arbre de dossiers, contenu d'un dossier, tri | ● | ● | ○ | ● |
+| 3b. **Recherche par nom** (complet ou partiel) sur tout l'inventaire | ○ (non identifiée) | ○ (non identifiée) | ○ (non identifiée) | ○ (non identifiée) |
+| 3c. **Filtres** taille / date / type / emplacement | ○ | ◐ (dossier et seuil de taille) | ○ | ◐ (filtres d'affichage) |
+| 3d. **Ouvrir** un élément, copier son chemin | ◐ (ouverture) | ◐ (ouverture) | ○ | ◐ (ouverture) |
 | 4. **Logiciels installés** | ○ | ○ | ○ | ○ |
 | 5. **Outils de dev** (Python, pip, Node, npm, Git, Tesseract) | ○ | ○ | ○ | ○ |
 | 6. **Développement** (projets Python/Node, dépôt Git) | ○ | ○ | ○ | ○ |
@@ -78,6 +81,13 @@ Légende : ● fourni · ◐ partiel · ○ absent
 
 **Aucun des quatre ne couvre les rubriques 4, 5 et 6.** Ce sont donc des
 développements entièrement neufs, et les plus spécifiques à ATLAS PC.
+
+**Sur la recherche (3b)** : aucune fonction de recherche par nom partiel n'a été
+identifiée dans le code examiné des quatre dépôts. Cela ne prouve pas son absence de
+leurs interfaces, mais **aucun d'eux ne peut servir de modèle** pour la fonction
+centrale d'ATLAS PC : la recherche et ses filtres seront conçus à partir du cahier des
+charges et des capacités de SQLite, pas d'un exemple existant. C'est le point du dossier
+où l'étude préalable apporte le moins — et il faut le dire.
 La rubrique 7 n'est approchée que par Diskplot, et à un seuil de 8 Mio qui n'a aucune
 raison d'être dans ATLAS PC.
 

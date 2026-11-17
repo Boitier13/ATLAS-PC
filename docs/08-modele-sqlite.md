@@ -1,8 +1,10 @@
 # Livrable 5 — Modèle SQLite réduit
 
-> **Révision du 17 novembre 2026.** 10 tables au lieu de 20 : plus de hachage de
-> chemin, plus de statistiques pré-calculées, plus de table de statut par champ, plus
-> de portée multi-racines, plus de rétention automatique.
+> **Révision du 17 novembre 2026 (2ᵉ).** 11 tables au lieu de 20. La rubrique Fichiers
+> devenant la fonction centrale, le modèle gagne **une** table (`scan_root`, statut par
+> disque) et **deux index de recherche**, et perd la racine unique de l'inventaire.
+> Toujours : aucun hachage de chemin, aucune statistique pré-calculée, aucune rétention
+> automatique.
 
 ---
 
@@ -11,21 +13,22 @@
 | Principe | Traduction |
 |---|---|
 | Un fichier est identifié par son **chemin complet normalisé** | colonnes `folder_path` + `name`, jointure directe entre inventaires |
-| Pas d'identifiant technique sophistiqué | aucun hachage, aucune clé dérivée |
+| La recherche doit être **servie par un index** | `ix_file_name` sur le nom, `ix_file_ext`, `ix_file_size` |
+| Un résultat n'est jamais présenté comme exhaustif | statut porté par `scan_root` **et** par `scan_issue` |
 | Les totaux se calculent à la demande | `SUM`/`COUNT` sur index, aucune table d'agrégats |
 | L'utilisateur décide de ce qu'il garde | aucun mécanisme de purge automatique |
-| Seules les données de la V1 | ni taille allouée, ni attributs, ni partitions, ni portables |
 | Rien de personnel | aucun contenu, aucun hash de contenu |
 
 Fichier : `%LOCALAPPDATA%\ATLAS PC\atlas.db`.
 
 ---
 
-## 2. Les dix tables
+## 2. Les onze tables
 
 ```mermaid
 erDiagram
     INVENTORY ||--|| COMPUTER : "décrit"
+    INVENTORY ||--o{ SCAN_ROOT : "analyse"
     INVENTORY ||--o{ DISK : "contient"
     INVENTORY ||--o{ VOLUME : "contient"
     INVENTORY ||--o{ SOFTWARE : "recense"
@@ -34,11 +37,13 @@ erDiagram
     INVENTORY ||--o{ FOLDER : "contient"
     INVENTORY ||--o{ FILE : "contient"
     INVENTORY ||--o{ SCAN_ISSUE : "signale"
+    SCAN_ROOT ||--o{ SCAN_ISSUE : "explique"
 ```
 
 | Table | Rôle | Volume attendu |
 |---|---|---|
 | `inventory` | un inventaire daté | 1 ligne par inventaire |
+| `scan_root` | **un disque analysé et son statut** | 1-4 lignes |
 | `computer` | matériel principal + Windows | 1 ligne |
 | `disk` | disques physiques | 1-2 lignes |
 | `volume` | volumes (C:, D:…) | 1-4 lignes |
@@ -57,7 +62,7 @@ erDiagram
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous  = NORMAL;
 PRAGMA foreign_keys = ON;
-PRAGMA cache_size   = -8000;    -- ~8 Mo
+PRAGMA cache_size   = -16000;   -- ~16 Mo : garde l'index des noms en cache
 PRAGMA temp_store   = MEMORY;
 
 -- 1. Inventaires ------------------------------------------------------------
@@ -67,8 +72,8 @@ CREATE TABLE inventory (
     finished_at   TEXT,
     status        TEXT    NOT NULL              -- complete | partial | cancelled
                   CHECK (status IN ('complete','partial','cancelled')),
-    root_path     TEXT    NOT NULL,             -- ex. 'C:\'
     app_version   TEXT    NOT NULL,
+    roots_count   INTEGER NOT NULL DEFAULT 0,
     files_count   INTEGER NOT NULL DEFAULT 0,
     folders_count INTEGER NOT NULL DEFAULT 0,
     total_bytes   INTEGER NOT NULL DEFAULT 0,
@@ -76,7 +81,26 @@ CREATE TABLE inventory (
     note          TEXT
 );
 
--- 2. Matériel principal et Windows ------------------------------------------
+-- 2. Disques analysés : le statut par emplacement --------------------------
+CREATE TABLE scan_root (
+    id            INTEGER PRIMARY KEY,
+    inventory_id  INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
+    path          TEXT    NOT NULL,             -- 'C:\', 'D:\'
+    drive         TEXT    NOT NULL,             -- 'C:'
+    label         TEXT,                         -- nom du volume
+    status        TEXT    NOT NULL              -- complete | partial | inaccessible | cancelled
+                  CHECK (status IN ('complete','partial','inaccessible','cancelled')),
+    files_count   INTEGER NOT NULL DEFAULT 0,
+    folders_count INTEGER NOT NULL DEFAULT 0,
+    total_bytes   INTEGER NOT NULL DEFAULT 0,
+    issues_count  INTEGER NOT NULL DEFAULT 0,
+    started_at    TEXT,
+    finished_at   TEXT,
+    error_message TEXT,                         -- si la racine n'a pas pu être ouverte
+    UNIQUE (inventory_id, drive)
+);
+
+-- 3. Matériel principal et Windows ------------------------------------------
 CREATE TABLE computer (
     inventory_id  INTEGER PRIMARY KEY REFERENCES inventory(id) ON DELETE CASCADE,
     manufacturer  TEXT, model TEXT,
@@ -88,7 +112,7 @@ CREATE TABLE computer (
     os_arch       TEXT, os_install_date TEXT
 );
 
--- 3. Disques physiques ------------------------------------------------------
+-- 4. Disques physiques ------------------------------------------------------
 CREATE TABLE disk (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
@@ -97,7 +121,7 @@ CREATE TABLE disk (
     size_bytes   INTEGER
 );
 
--- 4. Volumes ----------------------------------------------------------------
+-- 5. Volumes ----------------------------------------------------------------
 CREATE TABLE volume (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
@@ -109,7 +133,7 @@ CREATE TABLE volume (
     disk_index   INTEGER
 );
 
--- 5. Logiciels installés ----------------------------------------------------
+-- 6. Logiciels installés ----------------------------------------------------
 CREATE TABLE software (
     id               INTEGER PRIMARY KEY,
     inventory_id     INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
@@ -120,7 +144,7 @@ CREATE TABLE software (
     install_date     TEXT
 );
 
--- 6. Outils de développement ------------------------------------------------
+-- 7. Outils de développement ------------------------------------------------
 CREATE TABLE tool (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
@@ -130,7 +154,7 @@ CREATE TABLE tool (
     status       TEXT NOT NULL                  -- found|not_found|failed
 );
 
--- 7. Projets ----------------------------------------------------------------
+-- 8. Projets ----------------------------------------------------------------
 CREATE TABLE project (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
@@ -139,18 +163,19 @@ CREATE TABLE project (
     is_git       INTEGER NOT NULL DEFAULT 0
 );
 
--- 8. Dossiers ---------------------------------------------------------------
+-- 9. Dossiers ---------------------------------------------------------------
 CREATE TABLE folder (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
-    parent_path  TEXT,                          -- NULL pour la racine analysée
+    parent_path  TEXT,                          -- NULL pour la racine d'un disque
     path         TEXT NOT NULL,                 -- chemin complet du dossier
     size_bytes   INTEGER NOT NULL DEFAULT 0,
-    files_count  INTEGER NOT NULL DEFAULT 0,
-    dirs_count   INTEGER NOT NULL DEFAULT 0
+    files_count  INTEGER NOT NULL DEFAULT 0,    -- fichiers directs
+    dirs_count   INTEGER NOT NULL DEFAULT 0,    -- sous-dossiers directs
+    modified_at  TEXT                           -- date du dossier, si disponible
 );
 
--- 9. Fichiers ---------------------------------------------------------------
+-- 10. Fichiers --------------------------------------------------------------
 CREATE TABLE file (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
@@ -161,10 +186,11 @@ CREATE TABLE file (
     modified_at  TEXT NOT NULL                  -- ISO-8601 UTC
 );
 
--- 10. Zones non analysées ---------------------------------------------------
+-- 11. Zones non analysées ---------------------------------------------------
 CREATE TABLE scan_issue (
     id           INTEGER PRIMARY KEY,
     inventory_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
+    root_drive   TEXT,                          -- 'C:' : rattachement au disque
     path         TEXT NOT NULL,                 -- dossier qui a échoué
     code         INTEGER,                       -- code d'erreur .NET / Win32
     message      TEXT
@@ -180,44 +206,169 @@ CREATE INDEX ix_software_name   ON software(inventory_id, name);
 CREATE INDEX ix_tool_kind       ON tool(inventory_id, kind);
 CREATE INDEX ix_project_path    ON project(inventory_id, path);
 
+-- navigation dans l'arbre
 CREATE INDEX ix_folder_path     ON folder(inventory_id, path COLLATE NOCASE);
 CREATE INDEX ix_folder_parent   ON folder(inventory_id, parent_path COLLATE NOCASE);
 CREATE INDEX ix_folder_size     ON folder(inventory_id, size_bytes DESC);
 
--- l'index qui rend la comparaison possible et rapide
+-- recherche et comparaison : l'index qui compte le plus
+CREATE INDEX ix_file_name       ON file(inventory_id, name COLLATE NOCASE);
 CREATE INDEX ix_file_key        ON file(inventory_id, folder_path COLLATE NOCASE,
-                                        name COLLATE NOCASE);
+                                             name COLLATE NOCASE);
 CREATE INDEX ix_file_folder     ON file(inventory_id, folder_path COLLATE NOCASE);
 CREATE INDEX ix_file_ext        ON file(inventory_id, ext, size_bytes DESC);
+CREATE INDEX ix_file_size       ON file(inventory_id, size_bytes DESC);
 
+CREATE INDEX ix_issue_root      ON scan_issue(inventory_id, root_drive);
 CREATE INDEX ix_issue_path      ON scan_issue(inventory_id, path COLLATE NOCASE);
 ```
 
-`COLLATE NOCASE` : les chemins Windows sont insensibles à la casse. Limite connue,
-documentée : `NOCASE` ne traite que l'ASCII, donc une différence de casse sur un nom
-accentué ne serait pas détectée. C'est sans conséquence pratique (Windows ne crée pas
-deux noms ne différant que par la casse d'une lettre accentuée).
+**Pourquoi `ix_file_name` est le plus important.** Une recherche par préfixe
+(`LIKE 'fact%'`) est une recherche d'intervalle : elle est instantanée. Une recherche
+par sous-chaîne (`LIKE '%actu%'`) ne peut pas s'y ramener, mais **parcourt cet index**
+au lieu de la table entière : quelques mégaoctets lus au lieu de 60, et les lignes
+complètes ne sont lues que pour les 200 résultats affichés. C'est ce qui rend la
+recherche acceptable **sans** index plein texte. Si la mesure impose FTS5 (voir
+`07-architecture-cible.md` § 6.4), il s'ajoutera **une** table virtuelle, rien d'autre.
+
+`COLLATE NOCASE` ne traite que l'ASCII — limite documentée, sans conséquence pratique
+sur des noms de fichiers Windows.
 
 ---
 
 ## 4. Pourquoi « dossier + nom » plutôt qu'un chemin unique
 
-Le cahier des charges demande de comparer sur le **chemin complet normalisé**. Deux
-colonnes `folder_path` + `name` **sont** ce chemin complet, avec deux avantages :
+Deux colonnes `folder_path` + `name` **sont** le chemin complet normalisé, avec deux
+avantages :
 
-- on n'écrit pas 70 caractères de préfixe 400 000 fois pour rien — la jointure porte
-  sur `(folder_path, name)`, couverte par un seul index ;
-- la jointure entre deux inventaires n'a besoin d'aucune fonction de chaîne, donc
-  aucun calcul par ligne.
+- on n'écrit pas 70 caractères de préfixe 400 000 fois pour rien ;
+- la jointure entre deux inventaires et la navigation dans l'arbre n'ont besoin
+  d'aucune fonction de chaîne, donc d'aucun calcul par ligne.
 
-Aucune autre clé n'est nécessaire : pas de hachage, pas d'`id` de dossier dans la
-table des fichiers, pas de table de correspondance.
+Aucune autre clé n'est nécessaire : pas de hachage, pas d'`id` de dossier dans la table
+des fichiers.
 
 ---
 
-## 5. Comparaison : quatre résultats
+## 5. Les requêtes de la rubrique Fichiers
 
-### 5.1 Fichiers ajoutés
+Les requêtes ci-dessous sont celles qui décident de la qualité perçue. Toutes sont
+**paramétrées** et **plafonnées**.
+
+### 5.1 Liste des disques d'un inventaire
+
+```sql
+SELECT drive, label, status, files_count, folders_count, total_bytes, issues_count,
+       error_message
+FROM scan_root
+WHERE inventory_id = :inv
+ORDER BY drive;
+```
+
+C'est la source du bandeau de couverture : on ne peut pas afficher « complet » sans
+avoir lu ces statuts.
+
+### 5.2 Enfants d'un dossier (dépliage de l'arbre)
+
+```sql
+SELECT id, path, size_bytes, files_count, dirs_count
+FROM folder
+WHERE inventory_id = :inv
+  AND parent_path = :dossier            -- pour les racines : parent_path IS NULL
+ORDER BY size_bytes DESC
+LIMIT 500;
+```
+
+### 5.3 Contenu d'un dossier
+
+```sql
+-- sous-dossiers
+SELECT path, size_bytes, files_count, dirs_count FROM folder
+WHERE inventory_id = :inv AND parent_path = :dossier
+ORDER BY size_bytes DESC;
+
+-- fichiers (page de 200)
+SELECT id, name, ext, size_bytes, modified_at
+FROM file
+WHERE inventory_id = :inv AND folder_path = :dossier
+ORDER BY name
+LIMIT 200 OFFSET :decalage;
+```
+
+### 5.4 Fil d'Ariane
+
+Remonter `parent_path` de proche en proche : une requête courte par niveau (au plus
+une dizaine). Aucune récursion SQL.
+
+### 5.5 Recherche (niveaux 1 et 2)
+
+```sql
+SELECT id, name, ext, size_bytes, modified_at, folder_path
+FROM file
+WHERE inventory_id = :inv
+  AND name LIKE :motif            -- 'fact%' ou '%actu%'
+ORDER BY name
+LIMIT 200 OFFSET :decalage;
+
+-- nombre total, pour l'affichage « x résultats (200 affichés) »
+SELECT COUNT(*) FROM file
+WHERE inventory_id = :inv AND name LIKE :motif;
+```
+
+### 5.6 Recherche avec filtres
+
+```sql
+SELECT id, name, ext, size_bytes, modified_at, folder_path
+FROM file
+WHERE inventory_id = :inv
+  AND name LIKE :motif                                  -- si saisie
+  AND (:extSansFiltre = 1 OR ext IN (SELECT value FROM json_each(:exts)))
+  AND size_bytes BETWEEN :tailleMin AND :tailleMax
+  AND modified_at BETWEEN :dateDebut AND :dateFin
+  AND (:sousArbre = 0 OR folder_path = :dossier
+                        OR folder_path LIKE :dossier || '\%' ESCAPE '\')
+ORDER BY <colonne autorisée> <ASC|DESC>, name ASC   -- nom de colonne pris dans une
+                                                    -- table blanche du code, jamais
+                                                    -- concaténé depuis l'interface
+LIMIT 200 OFFSET :decalage;
+```
+
+> Le `IN (SELECT value FROM json_each(:exts))` évite de construire du SQL par
+> concaténation : la liste d'extensions est passée en **un seul paramètre JSON**. Si
+> `json_each` n'est pas disponible dans la version embarquée, repli immédiat sur une
+> liste de paramètres `IN (?,?,?)` plafonnée à 30 extensions — décision à vérifier à
+> l'étape 3B, sans effet sur le schéma.
+
+### 5.7 Le tableau de bord (à la demande, sans table d'agrégats)
+
+```sql
+-- types de fichiers
+SELECT ext, COUNT(*) AS fichiers, SUM(size_bytes) AS octets
+FROM file WHERE inventory_id = :id GROUP BY ext ORDER BY octets DESC;
+
+-- top dossiers d'un disque
+SELECT path, size_bytes FROM folder
+WHERE inventory_id = :id AND parent_path = :racine
+ORDER BY size_bytes DESC LIMIT 8;
+
+-- plus gros fichiers
+SELECT folder_path, name, size_bytes FROM file
+WHERE inventory_id = :id ORDER BY size_bytes DESC LIMIT 20;
+```
+
+Chacune doit rester sous **1 s** sur 400 000 lignes. Sinon : filtrer, plafonner, ou ne
+pas lancer la requête avant l'ouverture de la vue — **jamais** réintroduire des tables
+d'agrégats.
+
+---
+
+## 6. Comparaison : quatre résultats
+
+La comparaison n'a de sens qu'entre inventaires **portant les mêmes disques**. Si les
+ensembles diffèrent, l'interface le dit et compare disque par disque, jamais globalement
+en silence.
+
+### 6.1 Fichiers ajoutés
 
 ```sql
 SELECT b.folder_path, b.name, b.ext, b.size_bytes, b.modified_at
@@ -232,7 +383,7 @@ ORDER BY b.size_bytes DESC
 LIMIT 500;
 ```
 
-### 5.2 Fichiers modifiés
+### 6.2 Fichiers modifiés
 
 ```sql
 SELECT b.folder_path, b.name, a.size_bytes AS taille_avant, b.size_bytes AS taille_apres,
@@ -248,18 +399,20 @@ ORDER BY ABS(b.size_bytes - a.size_bytes) DESC
 LIMIT 500;
 ```
 
-### 5.3 Fichiers supprimés — avec la garde imposée
+### 6.3 Fichiers supprimés — avec la garde imposée
 
 > **Règle du cahier des charges** : ne jamais annoncer la disparition d'un fichier
 > lorsque la zone correspondante n'a pas été correctement analysée.
 
 Un fichier n'est déclaré **supprimé** que si l'inventaire récent ne contient **aucune
-zone en erreur** couvrant son dossier. Sinon, il est compté séparément comme
-**« disparition non vérifiable »** et n'est jamais présenté comme une suppression.
+zone en erreur** couvrant son dossier **et** si son disque y est `complete` ou
+`partial` (jamais `inaccessible` ni `cancelled`). Sinon, il devient une **« disparition
+non vérifiable »**, toujours accompagnée de la zone responsable.
 
 ```sql
 WITH candidats AS (
-    SELECT a.folder_path, a.name, a.ext, a.size_bytes, a.modified_at
+    SELECT a.folder_path, a.name, a.ext, a.size_bytes, a.modified_at,
+           substr(a.folder_path, 1, 2) AS root_drive      -- 'C:' déduit du chemin
     FROM file a
     WHERE a.inventory_id = :a
       AND NOT EXISTS (
@@ -274,102 +427,67 @@ SELECT c.folder_path, c.name, c.ext, c.size_bytes, c.modified_at,
                 WHERE s.inventory_id = :b
                   AND ( c.folder_path = s.path COLLATE NOCASE
                      OR c.folder_path LIKE s.path || '\%' ESCAPE '\' )
-            ) THEN 0 ELSE 1 END AS suppression_confirmee
+            )
+            OR EXISTS (
+                SELECT 1 FROM scan_root r
+                WHERE r.inventory_id = :b AND r.drive = c.root_drive
+                  AND r.status IN ('inaccessible','cancelled')
+            )
+            THEN 0 ELSE 1 END AS suppression_confirmee
 FROM candidats c
 ORDER BY c.size_bytes DESC
 LIMIT 500;
 ```
 
-- `suppression_confirmee = 1` → affiché dans « Fichiers supprimés » ;
-- `suppression_confirmee = 0` → affiché dans « Disparitions non vérifiables », avec le
-  chemin de la zone responsable.
+- `suppression_confirmee = 1` → « Fichiers supprimés » ;
+- `suppression_confirmee = 0` → « Disparitions non vérifiables », avec la zone
+  responsable et le statut du disque.
 
-Le nombre de lignes de `scan_issue` étant petit (quelques dizaines à quelques
-milliers), le test de préfixe reste rapide.
-
-### 5.4 Évolution de l'espace occupé
+### 6.4 Évolution de l'espace occupé
 
 ```sql
--- Écart global
 SELECT b.total_bytes - a.total_bytes AS delta_total,
        a.total_bytes AS avant, b.total_bytes AS apres,
        b.files_count - a.files_count AS delta_fichiers
 FROM inventory a, inventory b
 WHERE a.id = :a AND b.id = :b;
 
--- Écart par dossier de premier niveau
-SELECT tb.path, ta.size_bytes AS avant, tb.size_bytes AS apres,
-       tb.size_bytes - COALESCE(ta.size_bytes, 0) AS delta
-FROM folder tb
-LEFT JOIN folder ta
-       ON ta.inventory_id = :a
-      AND ta.path = tb.path COLLATE NOCASE
-WHERE tb.inventory_id = :b
-  AND tb.parent_path = (SELECT root_path FROM inventory WHERE id = :b)
-ORDER BY ABS(delta) DESC;
+-- par disque, puis par dossier de premier niveau
+SELECT rb.drive, ra.total_bytes AS avant, rb.total_bytes AS apres,
+       rb.total_bytes - COALESCE(ra.total_bytes, 0) AS delta
+FROM scan_root rb
+LEFT JOIN scan_root ra ON ra.inventory_id = :a AND ra.drive = rb.drive
+WHERE rb.inventory_id = :b
+ORDER BY rb.drive;
 ```
-
-Le second niveau (`parent_path` renseigné) permet d'afficher l'évolution dossier par
-dossier sans récursion.
-
----
-
-## 6. Ce que le tableau de bord calcule à la demande
-
-Aucune table de statistiques. Trois requêtes, exécutées à l'ouverture :
-
-```sql
--- Types de fichiers
-SELECT ext, COUNT(*) AS fichiers, SUM(size_bytes) AS octets
-FROM file WHERE inventory_id = :id GROUP BY ext ORDER BY octets DESC;
-
--- Top dossiers de premier niveau
-SELECT path, size_bytes FROM folder
-WHERE inventory_id = :id AND parent_path = (SELECT root_path FROM inventory WHERE id = :id)
-ORDER BY size_bytes DESC LIMIT 8;
-
--- Plus gros fichiers
-SELECT folder_path, name, size_bytes FROM file
-WHERE inventory_id = :id ORDER BY size_bytes DESC LIMIT 20;
-```
-
-Coût mesuré à valider : sur 400 000 lignes et un disque mécanique, chacune de ces
-requêtes doit rester sous **1 s** grâce aux index. Si ce n'est pas le cas, la parade
-n'est **pas** de réintroduire des tables d'agrégats : elle est de limiter la requête
-(filtrer par extension, plafonner, ou ne pas la lancer tant que la vue n'est pas
-ouverte). C'est un point à vérifier à l'étape 3, pas une hypothèse.
 
 ---
 
 ## 7. Volume et rétention
 
-### 7.1 Taille estimée, par inventaire complet
+### 7.1 Taille estimée, par inventaire de 400 000 fichiers
 
 | Table | Lignes | Taille estimée |
 |---|---|---|
-| `file` (données + index) | 400 000 | 50-70 Mo |
+| `file` (données) | 400 000 | 45-60 Mo |
+| `file` — index (`name`, `key`, `folder`, `ext`, `size`) | | 30-45 Mo |
 | `folder` | 60 000 | 6-9 Mo |
 | `software`, `tool`, `project` | < 500 | < 1 Mo |
-| `computer`, `disk`, `volume`, `scan_issue` | < 100 | < 100 Ko |
-| **Total** | | **≈ 60-80 Mo** |
+| `scan_root`, `computer`, `disk`, `volume`, `scan_issue` | < 100 | < 100 Ko |
+| **Total** | | **≈ 85-110 Mo** |
 
-Le chemin du dossier étant stocké dans chaque ligne de fichier, la base est un peu
-plus grosse qu'avec un identifiant de dossier — c'est le **prix assumé de la
-simplicité de comparaison**, et il reste très inférieur à la taille de ce qu'on
-analyse.
+Le surcoût par rapport à la version précédente vient des index de recherche : c'est le
+prix de la fonction centrale, et il reste inférieur à un dixième de la taille analysée.
 
 ### 7.2 Aucune rétention automatique
 
-- l'utilisateur voit la liste des inventaires, avec **date, nombre de fichiers, taille
-  en base** ;
-- il supprime celui qu'il veut (`DELETE FROM inventory WHERE id = ?`, cascade sur les
-  enfants) ;
-- l'interface affiche la taille totale du fichier `atlas.db` ;
-- au-delà de 10 inventaires, un message d'information — **jamais** une suppression
-  automatique.
+- l'utilisateur voit la liste des inventaires, avec **date, disques, nombre de fichiers,
+  taille en base** ;
+- il supprime celui qu'il veut (`DELETE FROM inventory WHERE id = ?`, cascade) ;
+- l'interface affiche la taille du fichier `atlas.db` et un avertissement au-delà de
+  10 inventaires — **jamais** une suppression automatique.
 
-Aucun `VACUUM` automatique : l'espace libéré est réutilisé par SQLite. Un bouton
-« compacter la base » peut exister s'il s'avère utile — sinon, il n'est pas ajouté.
+Aucun `VACUUM` automatique : l'espace libéré est réutilisé par SQLite.
 
 ---
 
@@ -378,10 +496,10 @@ Aucun `VACUUM` automatique : l'espace libéré est réutilisé par SQLite. Un bo
 | Absent | Raison |
 |---|---|
 | contenu de fichier | règle du cahier des charges |
-| hash de contenu | hors périmètre |
-| taille allouée, taille de cluster | reporté hors V1 |
-| attributs de fichier | reporté hors V1 |
-| partitions, barrettes mémoire, SMART, réseau | reporté hors V1 |
+| hash de contenu, index plein texte **en V1** | hors périmètre (FTS5 seulement si la mesure l'exige) |
+| taille allouée, taille de cluster | hors V1 |
+| attributs de fichier | hors V1 |
+| partitions, barrettes mémoire, SMART, réseau | hors V1 |
 | icônes, aperçus | volumineux, inutiles |
 | statistiques pré-calculées | recalculées à la demande |
 | historique de rétention | supprimé par l'utilisateur, pas par le logiciel |
@@ -391,10 +509,13 @@ Aucun `VACUUM` automatique : l'espace libéré est réutilisé par SQLite. Un bo
 ## 9. Points à vérifier à l'étape 3
 
 1. **Compatibilité** de `System.Data.SQLite.Core` avec `net48` : création, 100 000
-   insertions, requête d'agrégation. (Repli : `Microsoft.Data.Sqlite`.)
-2. **Ordre de création des index** : si l'insertion est le goulot d'étranglement,
-   créer `ix_file_key` et `ix_file_folder` **après** le scan.
-3. **Durée des trois requêtes du tableau de bord** sur 400 000 lignes.
-4. **Taille réelle** d'une base d'inventaire, à comparer au § 7.1.
-5. **Nombre réel de fichiers** du disque cible : s'il dépasse 1,5 million, revoir les
-   plafonds d'affichage (jamais le schéma).
+   insertions, agrégation. (Repli : `Microsoft.Data.Sqlite`.)
+2. **Version de SQLite embarquée** : `json_each` disponible ? `trigram` disponible (au
+   cas où FTS5 deviendrait nécessaire) ?
+3. **Ordre de création des index** : si l'insertion est le goulot, créer `ix_file_name`
+   et `ix_file_key` **après** le scan.
+4. **Durée de la recherche par sous-chaîne** sur 400 000 fichiers, à froid puis à chaud.
+   Seuil de décision : 1,5 s.
+5. **Durée des trois requêtes du tableau de bord** et de la pagination d'un gros dossier
+   (ex. `C:\Windows\System32`, ~ 5 000 fichiers).
+6. **Taille réelle** d'une base d'inventaire, à comparer au § 7.1.

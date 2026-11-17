@@ -1,7 +1,9 @@
-# Livrable 8 — Plan de développement en cinq étapes
+# Livrable 8 — Plan de développement
 
-> **Révision du 17 novembre 2026.** Dix jalons deviennent **cinq**. Chaque étape
-> produit une application qui démarre et une fonctionnalité réellement utilisable.
+> **Révision du 17 novembre 2026 (2ᵉ).** Le plan garde **cinq étapes**, mais l'étape 3
+> est scindée en deux moitiés livrables : **3A** (scan et stockage) et **3B** (la rubrique
+> Fichiers : exploration, recherche, filtres). 3B est le plus gros bloc du projet, parce
+> que c'est la fonction centrale.
 
 Hypothèse : une personne, à temps partiel. Les durées ordonnent le travail ; ce ne sont
 pas des engagements.
@@ -12,54 +14,53 @@ pas des engagements.
 
 | Étape | Objet | Durée | À la fin, on peut… |
 |---|---|---|---|
-| **1** | Application et interface de base | 3 j | lancer ATLAS PC, naviguer dans les 7 rubriques, créer un inventaire vide en base |
-| **2** | Inventaire matériel et Windows | 3 j | consulter la fiche complète du PC (CPU, RAM, disques, volumes, Windows, BIOS) |
-| **3** | Inventaire des fichiers et stockage | 6 j | lancer un inventaire complet de `C:`, explorer dossiers et fichiers, voir les volumes occupés |
-| **4** | Logiciels, outils et projets | 3 j | consulter les logiciels installés, les 6 outils, les projets Python/Node |
-| **5** | Historique, comparaison et vérifications | 4 j | comparer deux inventaires et savoir exactement ce qui a changé |
-| | **Total** | **19 j** | |
+| **1** | Application et interface de base | 3 j | lancer ATLAS PC, naviguer dans les 7 rubriques, créer un inventaire vide |
+| **2** | Inventaire matériel et Windows | 3 j | consulter la fiche complète du PC |
+| **3A** | Scan des fichiers et stockage | 5 j | lancer un inventaire de `C:` et `D:` et le voir progresser |
+| **3B** | **Rubrique Fichiers** : exploration, recherche, filtres, ouverture | 5 j | **retrouver un fichier par son nom, filtrer, ouvrir, copier son chemin** |
+| **4** | Logiciels, outils et projets | 3 j | consulter les logiciels, les 6 outils, les projets Python/Node |
+| **5** | Évolution, comparaison et recette | 4 j | comparer deux inventaires et vérifier toute la matrice |
+| | **Total** | **23 j** | |
 
-Le chemin critique est l'**étape 3** : c'est là que se jouent la durée du scan, la
-mémoire et la fluidité de l'interface.
+Le chemin critique est **3A → 3B** : neuf jours, plus du tiers du projet, sur la seule
+fonction qui justifie le logiciel.
 
 ```mermaid
 flowchart LR
     E1[1 · socle] --> E2[2 · matériel]
-    E2 --> E3[3 · fichiers + SQLite]
-    E3 --> E4[4 · logiciels/outils/projets]
-    E4 --> E5[5 · historique + recette]
+    E2 --> E3A[3A · scan + base]
+    E3A --> E3B[3B · rubrique Fichiers]
+    E3B --> E4[4 · logiciels/outils/projets]
+    E4 --> E5[5 · évolution + recette]
 ```
+
+Chaque étape produit une application qui démarre et une fonction utilisable. Si le
+projet s'arrêtait après 3B, ATLAS PC serait déjà utile.
 
 ---
 
 ## 2. Étape 1 — Application et interface de base (3 j)
 
-**Objectif** : avoir une application qui tourne, se navigue, et parle à la base.
-
 | Livrable | Détail |
 |---|---|
 | Solution et projet unique | `net48`, `WinExe`, `UseWPF`, un seul paquet `System.Data.SQLite.Core` |
 | `ShellWindow` | barre latérale 7 entrées, barre supérieure, zone de contenu, badge d'état |
-| `Themes/Theme.xaml` | couleurs, typographie, styles de tableau, de bouton, de carte |
+| `Themes/Theme.xaml` | neutres, rampe d'accent, **couleurs de familles**, couleurs d'état |
 | 7 vues vides | chacune avec son état vide et son titre |
-| `Database.cs` + `Schema.sql` | création de la base, table `inventory` |
+| `Database.cs` + `Schema.sql` | création de la base, tables `inventory` et `scan_root` |
 | `InventoryStore` | créer, lister, supprimer un inventaire |
-| `ScanProgress` + bandeau | bandeau de progression factice, pour valider la place dans la mise en page |
+| Bandeau de progression | factice, pour valider sa place dans la mise en page |
 
-**Tests**
-- démarrage à froid, 5 essais après redémarrage ;
-- navigation entre les 7 rubriques, aucun défilement horizontal à 1440 × 900 ;
-- création puis suppression d'un inventaire, en cascade.
+**Tests** : démarrage à froid (5 essais), navigation, création/suppression d'inventaire.
 
 **Critères de sortie**
-- démarrage à froid **< 3 s** ;
-- mémoire au repos **< 130 Mo** ;
-- la base est créée dans `%LOCALAPPDATA%\ATLAS PC\` ;
+- démarrage à froid **< 3 s** ; mémoire au repos **< 130 Mo** ;
+- base créée dans `%LOCALAPPDATA%\ATLAS PC\` ;
 - la fenêtre se redimensionne sans casser la mise en page.
 
-> **Point de décision.** Si le démarrage dépasse 5 s ou la mémoire 200 Mo, deux
-> options sont évaluées **avant** l'étape 2 : rester en WPF en allégeant le thème, ou
-> passer en WinForms. Le choix est consigné dans ce document.
+> **Point de décision.** Si le démarrage dépasse 5 s ou la mémoire 200 Mo, deux options
+> sont évaluées **avant** l'étape 2 : rester en WPF en allégeant le thème (moins de
+> styles, pas de transparence), ou passer en WinForms.
 
 ---
 
@@ -67,158 +68,168 @@ flowchart LR
 
 | Livrable | Détail |
 |---|---|
-| `ComputerCollector` | 7 requêtes WMI + registre `CurrentVersion`, un `try/catch` par requête, délai 10 s |
+| `ComputerCollector` | 7 requêtes WMI + registre, un `try/catch` par requête, délai 10 s |
 | Tables `computer`, `disk`, `volume` | écriture d'un inventaire matériel |
-| Vue **Ordinateur** | 6 fiches + tableau disques/volumes |
-| Affichage des valeurs absentes | `—` + info-bulle, jamais `0` |
+| Vue **Ordinateur** | 6 fiches + tableau disques/volumes avec barre de remplissage colorée |
+| Valeurs absentes | `—` + info-bulle, jamais `0` |
 
-**Tests**
-- exécution réelle sur la machine cible, valeurs comparées aux valeurs connues ;
-- test unitaire des auxiliaires (formatage des octets, composition du numéro de build) ;
-- test d'absence : sur une machine où une requête échoue, les autres sections restent
-  renseignées.
-
-**Critères de sortie**
-- collecte matérielle **< 15 s** ;
-- aucune exception non gérée si WMI est indisponible ;
-- exécution en utilisateur standard, manifeste `asInvoker` ;
-- 100 % des champs affichés ont une valeur ou un `—` justifié.
+**Critères de sortie** : collecte **< 15 s** ; aucune exception non gérée si WMI est
+indisponible ; exécution en utilisateur standard ; 100 % des champs affichés ont une
+valeur ou un `—` justifié.
 
 ---
 
-## 4. Étape 3 — Inventaire des fichiers et stockage SQLite (6 j)
-
-C'est l'étape la plus longue et la plus risquée.
+## 4. Étape 3A — Scan des fichiers et stockage (5 j)
 
 | Livrable | Détail |
 |---|---|
-| `FileScanner` | `DirectoryInfo.EnumerateFileSystemInfos`, DFS, un thread |
+| `FileScanner` | `DirectoryInfo.EnumerateFileSystemInfos`, DFS, un thread, une racine après l'autre |
 | `BatchWriter` + `ScanStore` | lots de 500 entrées ou 2 s, transaction par lot |
-| Tables `folder`, `file`, `scan_issue` | avec les index du livrable 5 |
+| Tables `folder`, `file`, `scan_issue` | avec les index du livrable 5, dont `ix_file_name` |
 | `ProjectDetector` | branché dans la boucle (aucune lecture supplémentaire) |
-| Vue **Fichiers** | arborescence paresseuse, tableau virtualisé, recherche, compteur d'incidents |
-| Tableau de bord réel | 4 cartes, répartition par dossier, types de fichiers, liste des inventaires |
-| Progression et annulation | bandeau, `Échap`, états `complete` / `partial` / `cancelled` |
+| Sélection des disques | cases à cocher (fixes par défaut), statut par racine |
+| Progression et annulation | bandeau, `Échap`, états par racine |
 
-**Tests**
-- totaux de dossier exacts sur une arborescence générée (comparaison avec un calcul de
-  référence) ;
-- points de reparse non suivis ;
-- dossier inaccessible → une ligne `scan_issue`, pas d'arrêt ;
-- annulation → inventaire `partial`, données cohérentes, base réutilisable ;
-- mémoire : suivi du pic pendant un scan complet, assertion **< 200 Mo** ;
-- garde-fou de lecture seule : le test échoue si une API d'écriture apparaît dans
-  `Scanning`.
+**Tests** : totaux exacts sur une arborescence générée, points de reparse non suivis,
+dossier inaccessible → une ligne `scan_issue`, annulation → inventaire cohérent,
+clôture par racine (deux disques = deux statuts), pic mémoire, garde-fou de lecture
+seule.
 
 **Critères de sortie**
-- volume `C:` analysé entièrement sans administrateur ;
-- pic mémoire **< 200 Mo** ;
-- annulation prise en compte **< 500 ms** ;
-- base **< 80 Mo** pour 400 000 fichiers ;
-- les trois requêtes du tableau de bord répondent en **< 1 s** ;
+- `C:` analysé entièrement sans administrateur, statut explicite ;
+- pic mémoire **< 200 Mo** ; annulation prise en compte **< 500 ms** ;
+- base **< 120 Mo** pour 400 000 fichiers ;
 - **durée mesurée et consignée** (seuil d'alerte : 20 minutes).
 
-> **Décision conditionnelle.** Si la durée dépasse 20 minutes, ou si les chemins longs
-> échouent en masse, on ajoute alors — et seulement alors — un énumérateur
-> `FindFirstFileExW` dans **une seule classe**, sans toucher au reste. La décision et
-> sa mesure sont documentées.
+> **Décision conditionnelle (moteur).** Si la durée dépasse 20 minutes, ou si les chemins
+> longs échouent en masse, on ajoute alors — et seulement alors — un énumérateur
+> `FindFirstFileExW` dans **une seule classe**. Décision et mesure documentées.
 
 ---
 
-## 5. Étape 4 — Logiciels, outils et projets (3 j)
+## 5. Étape 3B — La rubrique Fichiers (5 j)
+
+C'est l'étape qui décide de la valeur du logiciel. Elle se découpe en cinq demi-journées
+identifiables.
+
+| Jour | Livrable | Détail |
+|---|---|---|
+| **J1** | Navigation | `BrowseQueries`, `FilesViewModel` : liste des disques avec statut, arbre paresseux, fil d'Ariane, contenu d'un dossier (sous-dossiers + fichiers paginés) |
+| **J2** | Tableau et tri | colonnes Nom/Type/Taille/Modifié/Chemin, pastilles de famille, pagination de 200, tri sur toutes les colonnes, ligne d'état du dossier |
+| **J3** | Recherche | `SearchQueries`, `SearchViewModel` : préfixe puis sous-chaîne, exécution hors du thread d'affichage, annulation, compteur « x résultats (200 affichés) », mention de couverture |
+| **J4** | Filtres | extension, famille, taille, date, emplacement ; cumul, « tout effacer », pastilles actives, comptage |
+| **J5** | Actions et finitions | `ItemOpener` (ouverture vérifiée), `ClipboardHelper` (copier le chemin / le nom), menu contextuel, états vides, libellés, revue visuelle contre la maquette |
+
+**Tests** (les 14 de la rubrique Fichiers, livrable 7 § 4) : préfixe et sous-chaîne sur
+le même jeu attendu, casse, pagination sans doublon ni trou, chaque filtre et leur
+combinaison, restriction au dossier courant, couverture signalée, ouverture refusée sur
+chemin disparu, absence d'API d'écriture dans `Shell`.
+
+**Critères de sortie**
+
+| Critère | Seuil |
+|---|---|
+| Recherche par préfixe | < 100 ms |
+| Recherche par sous-chaîne (400 000 fichiers) | **< 1,5 s**, à froid et à chaud |
+| Application d'un filtre (page) | < 300 ms |
+| Dépliage d'un dossier de 5 000 fichiers | < 400 ms pour la première page |
+| Figement de l'interface pendant une recherche | aucun > 200 ms |
+| Mémoire avec 10 000 résultats parcourus | **< 250 Mo** (pagination oblige) |
+| Affichage d'un total sans mention de couverture | **zéro** |
+| Démarrage d'une application/l'Explorateur hors ATLAS PC | uniquement sur action explicite |
+
+> **Décision conditionnelle (recherche).** Si la mesure de la sous-chaîne dépasse
+> **1,5 s** sur la machine cible, on ajoute la table virtuelle `file_name_fts`
+> (FTS5, `tokenize='trigram'`), alimentée en fin de scan. C'est **une table et une
+> requête** de plus : le schéma des 11 tables ne change pas, aucune autre partie du
+> logiciel n'est touchée. La mesure et la décision sont consignées.
+
+---
+
+## 6. Étape 4 — Logiciels, outils et projets (3 j)
 
 | Livrable | Détail |
 |---|---|
 | `SoftwareCollector` | 3 clés `Uninstall`, filtres documentés |
 | `ToolCollector` | 6 outils, `PATH` + dossiers connus, `FileVersionInfo` puis `--version` (3 s) |
-| Vue **Logiciels** | tableau + recherche |
-| Vue **Outils** | 6 fiches avec statut |
-| Vue **Développement** | filtres Python / Node, tableau, compteur de dépôts Git |
+| Vues **Logiciels**, **Outils**, **Développement** | tableaux, fiches, filtres en pastilles |
 
-**Tests**
-- filtrage du registre : entrées sans nom, `SystemComponent`, `ParentKeyName` ;
-- `ProjectDetector` sur une arborescence piégée (`node_modules` avec 50 `package.json`,
-  `venv`, `dist`, `target`) → **aucun** faux projet ;
-- un outil absent des 6 ne bloque pas les 5 autres ;
-- deux inventaires consécutifs sans changement produisent **zéro** différence sur les
-  logiciels.
-
-**Critères de sortie**
-- logiciels collectés **< 3 s** ;
-- outils détectés **< 5 s** avec commandes, **< 1 s** sans ;
-- aucun faux positif de projet sur l'arborescence piégée ;
-- aucune régression de durée du scan (surcoût < 2 %).
+**Critères de sortie** : logiciels **< 3 s** ; outils **< 5 s** avec commandes, **< 1 s**
+sans ; aucun faux positif de projet sur une arborescence piégée (`node_modules`, `venv`,
+`dist`) ; **aucune régression** de la durée du scan (< 2 %).
 
 ---
 
-## 6. Étape 5 — Historique, comparaison et vérifications finales (4 j)
+## 7. Étape 5 — Évolution, comparaison et recette (4 j)
 
 | Livrable | Détail |
 |---|---|
 | `ComparisonQueries` | ajoutés, supprimés (+ non vérifiables), modifiés, espace occupé |
-| Vue **Évolution** | sélecteurs A/B, 4 blocs de synthèse, 4 onglets |
+| Vue **Évolution** | sélecteurs A/B avec disques couverts, 4 blocs, 4 onglets, refus si disques différents |
 | Suppression d'inventaire | bouton + confirmation, taille affichée, avertissement au-delà de 10 |
 | Matrice de recette | exécutée sur le PC cible et consignée |
-| Audit de lecture seule | **Process Monitor** pendant un inventaire complet |
+| Audit de lecture seule | **Process Monitor** pendant un inventaire complet et pendant une session de recherche |
 | Distribution | dossier compressé, `README` de prise en main, notes de version |
 
-**Tests**
-- **jeu de référence** : 20 fichiers créés, 3 modifiés, 2 supprimés entre deux
-  inventaires → résultat exactement conforme à l'attendu ;
-- **zone non analysée** : un dossier rendu illisible entre A et B → ses fichiers
-  apparaissent en « disparitions non vérifiables », **jamais** en « supprimés » ;
-- racines différentes → comparaison refusée avec un message ;
-- inventaire `partial` → bandeau et comportement cohérent ;
-- performance : comparaison de deux inventaires de 400 000 fichiers **< 3 s**.
+**Tests** : jeu de référence (20 fichiers créés, 3 modifiés, 2 supprimés) → résultat
+exactement conforme ; **zone non analysée** → « disparitions non vérifiables », jamais
+« supprimés » ; disques différents → comparaison refusée avec message ; inventaire
+`partial` → bandeau et comportement cohérent.
 
-**Critères de sortie (recette globale)**
+**Recette globale**
 
 | Critère | Seuil |
 |---|---|
 | Démarrage à froid | < 3 s |
 | Mémoire au repos | < 130 Mo |
 | Pic mémoire pendant un scan | < 200 Mo |
+| Mémoire après 10 000 résultats consultés | < 250 Mo |
 | Gel de l'interface | aucun > 200 ms |
-| Annulation | < 500 ms |
-| Inventaire complet de `C:` sans admin | terminé, `complete` ou `partial` expliqué |
-| Base par inventaire | < 80 Mo |
+| Annulation d'un scan | < 500 ms |
+| Recherche par sous-chaîne | < 1,5 s |
+| Inventaire complet sans admin | terminé, statut par disque expliqué |
+| Base par inventaire | < 120 Mo |
 | Comparaison de deux inventaires | < 3 s |
 | Écritures hors `%LOCALAPPDATA%\ATLAS PC\` | **zéro** |
 | Fausse annonce de suppression en zone non analysée | **zéro** |
+| Total de résultats affiché sans mention de couverture | **zéro** |
 
 ---
 
-## 7. Stratégie de test, en une page
+## 8. Stratégie de test, en une page
 
 | Niveau | Moyen | Ce qu'on couvre |
 |---|---|---|
-| Unitaire | xUnit ou NUnit, sur fonctions et classes réelles | calcul des totaux, filtrage du registre, détection de projets, requêtes de comparaison |
-| Intégration | dossiers temporaires réels + base temporaire | scan complet, annulation, comparaison de bout en bout |
-| Système | machine cible | durée, mémoire, états, valeurs matérielles |
-| Conformité | Process Monitor + test par réflexion | lecture seule |
-| Visuel | captures comparées à la maquette | cohérence de l'interface |
+| Unitaire | xUnit ou NUnit, sur classes réelles | totaux, filtres, familles, pagination, détection de projets, requêtes de comparaison |
+| Intégration | dossiers temporaires réels + base temporaire | scan, annulation, navigation, recherche, comparaison |
+| Performance | chronomètres sur la machine cible | démarrage, scan, recherche, filtres, pagination |
+| Système | machine cible | états, valeurs matérielles, couverture |
+| Conformité | Process Monitor + test par réflexion | lecture seule, y compris l'ouverture d'éléments |
+| Visuel | captures comparées aux deux maquettes | cohérence de l'interface |
 
 Pas d'interfaces ni de doublures : les tests utilisent le vrai code sur de vraies
-données temporaires. C'est plus court à écrire et plus proche du comportement réel.
+données temporaires.
 
 ---
 
-## 8. Ce que le plan évite
+## 9. Ce que le plan évite
 
 | Tentation | Pourquoi elle est écartée |
 |---|---|
-| Commencer par l'interface complète | le risque est dans le moteur et la base |
-| Ajouter le treemap en étape 3 | non exigé, coûteux |
-| Écrire des exports « pour plus tard » | la fonction est retirée du périmètre |
+| Commencer par les six rubriques secondaires | elles sont faciles et ne décident de rien |
+| Livrer la rubrique Fichiers sans fil ni recherche | ce serait un tableau d'inventaire, exactement ce qu'il ne faut pas |
+| Ajouter FTS5 « pour être sûr » | coût de stockage réel ; décision prise sur mesure, pas par principe |
+| Charger tous les résultats pour les compter | la pagination et le `COUNT` séparé suffisent |
+| Filtrer en mémoire | les filtres sont du SQL, sinon la pagination devient fausse |
+| Ajouter le treemap en étape 3B | non exigé, coûteux |
 | Optimiser avant de mesurer | les seuils sont posés à l'étape 1 et vérifiés à chaque étape |
-| Multi-cibler .NET dès le départ | complexité sans bénéfice démontré |
 | Développer ailleurs que sur la cible | toute mesure doit être faite sur l'OptiPlex 780 |
 
 ---
 
-## 9. Après la V1
+## 10. Après la V1
 
 Aucune fonctionnalité n'est planifiée. Si l'usage réel le justifie, les candidats
-seraient, dans cet ordre : taille allouée réelle, filtres avancés dans la vue Fichiers,
-export d'un inventaire. **Aucun n'est prévu, aucun n'est à moitié implémenté dans la
-V1.**
+seraient, dans cet ordre : index plein texte si la recherche se révèle trop lente,
+taille allouée réelle, recherche dans le contenu. **Aucun n'est prévu, aucun n'est à
+moitié implémenté dans la V1.**

@@ -1,8 +1,9 @@
 # Livrable 7 — Arborescence du futur projet
 
-> **Révision du 17 novembre 2026.** Un seul projet applicatif au lieu de six, aucune
-> couche d'abstraction, un projet de tests unique conservé parce qu'il apporte un
-> avantage réel.
+> **Révision du 17 novembre 2026 (2ᵉ).** La rubrique Fichiers devenant la fonction
+> centrale, l'arborescence gagne un dossier `Shell/` (ouvrir, copier), trois classes de
+> données et une séparation nette entre **navigation** et **recherche**. Toujours deux
+> projets, aucune couche, aucune interface.
 
 ---
 
@@ -19,6 +20,7 @@ ATLAS-PC/
 ├─ docs/                       ce dossier
 ├─ assets/
 │  ├─ maquette-atlas-pc.png
+│  ├─ maquette-fichiers.png
 │  └─ app.ico
 ├─ src/
 │  └─ AtlasPc/
@@ -41,25 +43,31 @@ AtlasPc/
 ├─ App.xaml / App.xaml.cs      démarrage, gestion globale des exceptions
 │
 ├─ Models/
-│  ├─ Inventory.cs             id, dates, statut, racine, compteurs
+│  ├─ Inventory.cs             id, dates, statut, disques, compteurs
+│  ├─ ScanRootInfo.cs          disque, libellé, statut, compteurs, erreur
 │  ├─ ComputerInfo.cs          matériel + Windows (une classe, des propriétés)
 │  ├─ DiskInfo.cs  VolumeInfo.cs
 │  ├─ SoftwareItem.cs  ToolInfo.cs  ProjectInfo.cs
-│  ├─ FileEntry.cs             struct : dossier, nom, extension, taille, date
+│  ├─ FolderRow.cs             chemin, parent, taille, fichiers, dossiers
+│  ├─ FileRow.cs               nom, dossier, extension, taille, date
+│  ├─ SearchQuery.cs           texte, filtres, tri, page
+│  ├─ FileCategory.cs          dictionnaire statique famille → extensions (+ couleur)
 │  ├─ ScanIssue.cs             dossier, code, message
 │  └─ ComparisonResult.cs      ajoutés, supprimés, non vérifiables, modifiés, delta
 │
 ├─ Data/
-│  ├─ Schema.sql               ressource embarquée, les 10 tables + index
+│  ├─ Schema.sql               ressource embarquée, les 11 tables + index
 │  ├─ Database.cs              ouverture, PRAGMA, création/migration du schéma
 │  ├─ InventoryStore.cs        créer, lister, supprimer, clôturer un inventaire
-│  ├─ ScanStore.cs             écriture par lots (dossiers, fichiers, incidents)
-│  ├─ ReadQueries.cs           lectures d'affichage (dossiers, fichiers, top, types)
-│  └─ ComparisonQueries.cs     les quatre requêtes du livrable 5
+│  ├─ ScanStore.cs             écriture par lots (racines, dossiers, fichiers, incidents)
+│  ├─ BrowseQueries.cs         disques, enfants d'un dossier, contenu, fil d'Ariane
+│  ├─ SearchQueries.cs         recherche préfixe/sous-chaîne, filtres, comptages
+│  ├─ DashboardQueries.cs      les trois requêtes de synthèse
+│  └─ ComparisonQueries.cs     les quatre requêtes de comparaison
 │
 ├─ Scanning/
-│  ├─ FileScanner.cs           parcours DFS, totaux, progression, annulation
-│  ├─ ScanProgress.cs          compteurs + chemin courant
+│  ├─ FileScanner.cs           parcours d'une racine, totaux, progression, annulation
+│  ├─ ScanProgress.cs          compteurs + chemin courant + racine courante
 │  └─ BatchWriter.cs           accumulation et envoi des lots
 │
 ├─ Collecting/
@@ -68,27 +76,37 @@ AtlasPc/
 │  ├─ ToolCollector.cs         six outils
 │  └─ ProjectDetector.cs       marqueurs package.json / requirements.txt / pyproject.toml
 │
+├─ Shell/
+│  ├─ ItemOpener.cs            vérifie l'existence, ouvre dossier ou fichier
+│  └─ ClipboardHelper.cs       copie d'un chemin, tolérant à l'absence de presse-papiers
+│
 ├─ ViewModels/
-│  ├─ ObservableObject.cs      ~20 lignes : INotifyPropertyChanged + OnPropertyChanged
+│  ├─ ObservableObject.cs      ~20 lignes : INotifyPropertyChanged
 │  ├─ RelayCommand.cs          ~25 lignes
 │  ├─ ShellViewModel.cs        navigation, inventaire en cours, état global
-│  ├─ DashboardViewModel.cs  ComputerViewModel.cs  FilesViewModel.cs
-│  └─ SoftwareViewModel.cs   ToolsViewModel.cs     DevelopmentViewModel.cs
-│     EvolutionViewModel.cs
+│  ├─ DashboardViewModel.cs    ComputerViewModel.cs
+│  ├─ FilesViewModel.cs        disques, arbre, sélection, fil d'Ariane, commandes
+│  ├─ SearchViewModel.cs       texte, filtres, résultats paginés, annulation
+│  ├─ SoftwareViewModel.cs     ToolsViewModel.cs   DevelopmentViewModel.cs
+│  └─ EvolutionViewModel.cs
 │
 ├─ Views/
 │  ├─ ShellWindow.xaml         barre latérale + barre supérieure + zone de contenu
-│  ├─ DashboardView.xaml       OrdinateurView.xaml    FilesView.xaml
-│  ├─ SoftwareView.xaml        ToolsView.xaml         DevelopmentView.xaml
+│  ├─ DashboardView.xaml       OrdinateurView.xaml
+│  ├─ FilesView.xaml           arbre + filtres + tableau + ligne d'état
+│  ├─ SoftwareView.xaml        ToolsView.xaml   DevelopmentView.xaml
 │  └─ EvolutionView.xaml
 │
 ├─ Controls/
-│  ├─ StatCard.xaml            carte de synthèse
+│  ├─ StatCard.xaml            carte de synthèse (icône teintée)
 │  ├─ BarRow.xaml              libellé + barre + valeur (le seul graphique)
-│  └─ StatusBadge.xaml         Complet / Partiel / Annulé
+│  ├─ TypeDot.xaml             pastille de famille de fichier
+│  ├─ FilterChip.xaml          filtre actif (teinte + croix)
+│  ├─ DiskChip.xaml            pastille de disque avec état
+│  └─ StatusBadge.xaml         Complet / Partiel / Inaccessible / Annulé
 │
 ├─ Themes/
-│  └─ Theme.xaml               couleurs, typographie, styles de tableau et de bouton
+│  └─ Theme.xaml               couleurs, rampes, typographie, styles
 │
 └─ Resources/
    └─ app.ico
@@ -98,17 +116,22 @@ AtlasPc/
 
 | Dossier | Fichiers | Remarque |
 |---|---|---|
-| `Models` | 10 | classes de données, sans logique |
-| `Data` | 6 | tout le SQL est ici |
+| `Models` | 13 | classes de données, sans logique |
+| `Data` | 8 | tout le SQL est ici |
 | `Scanning` | 3 | aucune dépendance à WPF |
 | `Collecting` | 4 | une classe par domaine |
-| `ViewModels` | 9 | un par vue + 2 utilitaires |
+| `Shell` | 2 | 5 commandes, 60 lignes à elles deux |
+| `ViewModels` | 11 | dont deux pour la rubrique Fichiers |
 | `Views` | 8 | XAML |
-| `Controls` | 3 | |
+| `Controls` | 6 | |
 | `Themes` | 1 | |
 
-Total ≈ 44 fichiers, dont 8 fichiers XAML et un fichier SQL. C'est l'ordre de grandeur
-d'un petit logiciel de bureau, pas d'une plateforme.
+Total ≈ 56 fichiers, dont 8 XAML et un fichier SQL. C'est l'ordre de grandeur d'un
+petit logiciel de bureau, pas d'une plateforme.
+
+**Le prix de la fonction centrale** : environ 12 fichiers de plus que la version
+précédente, tous concentrés sur la rubrique Fichiers. C'est un choix : la recherche et la
+navigation sont ce qui doit être le plus soigné, et donc aussi le plus découpé.
 
 ---
 
@@ -118,9 +141,11 @@ d'un petit logiciel de bureau, pas d'une plateforme.
 |---|---|
 | `Atlas.Core`, `Atlas.Data`, `Atlas.Scan`… | un seul projet : les dossiers suffisent |
 | `Contracts/`, `Ports/`, `Abstractions/` | aucune interface pour un seul implémenteur |
-| `Services/` | aurait servi d'interface entre vues et données : les ViewModels appelent `Data` directement |
+| `Services/` | les ViewModels appellent `Data` directement |
 | `Reports/` | fonction supprimée |
-| `Migrations/` (dossier de scripts) | une seule table de version dans `Database.cs`, le schéma est créé en une fois |
+| `Search/` séparé de `Data/` | la recherche est du SQL : elle reste dans `Data` |
+| `Indexing/`, moteur plein texte | hors V1 ; seulement si la mesure l'exige, dans `Data` |
+| `Migrations/` (dossier de scripts) | le schéma est créé en une fois dans `Database.cs` |
 | `Scripts/`, `tools/`, `build/` | publication = un `dotnet publish` documenté dans le README |
 | `Interop/` | aucune signature P/Invoke en V1 |
 | `Resources/fonts`, `Resources/icons` | Segoe UI et les icônes système suffisent |
@@ -129,7 +154,8 @@ d'un petit logiciel de bureau, pas d'une plateforme.
 
 ## 4. Le projet de tests `tests/AtlasPc.Tests/`
 
-Il est **conservé** parce qu'il teste des choses qui ne se vérifient pas à l'œil :
+Il est **conservé** parce qu'il teste des choses qui ne se vérifient pas à l'œil. Les
+tests de la rubrique Fichiers sont les plus nombreux : c'est la fonction centrale.
 
 | Test | Ce qu'il prouve |
 |---|---|
@@ -137,15 +163,26 @@ Il est **conservé** parce qu'il teste des choses qui ne se vérifient pas à l'
 | `Scanner_SauteLesPointsDeReparse` | aucune boucle infinie |
 | `Scanner_EnregistreLesDossiersIllisibles` | un refus d'accès ne casse pas le scan |
 | `Scanner_AnnuleSansPerdreLeLotEnCours` | l'annulation laisse un inventaire cohérent |
-| `Comparison_DistingueSuppressionEtZoneNonAnalysee` | **la règle la plus importante du cahier des charges** |
-| `Comparison_DetecteAjoutSuppressionModification` | sur un jeu de fichiers créé puis modifié |
-| `Software_FiltreSystemComponentEtParentKeyName` | le filtrage du registre est correct |
+| `Scanner_ClotParRacine` | deux disques = deux statuts, jamais un statut global trompeur |
+| `Search_TrouveParPrefixeEtParSousChaine` | les deux niveaux renvoient le même ensemble attendu |
+| `Search_IgnoreLaCasseEtLesAccentsExacts` | comportement de `NOCASE` documenté et testé |
+| `Search_PagineSansDoublonNiTrou` | `ORDER BY` stable avec `LIMIT/OFFSET` |
+| `Search_FiltreParExtensionFamilleTailleDate` | chaque filtre et leur combinaison |
+| `Search_RestreintAuDossierCourant` | le filtre d'emplacement n'inclut pas les frères |
+| `Search_RespecteLaCouverture` | un disque `inaccessible` est signalé dans le résultat |
+| `Browse_DonneLesEnfantsDUnDossier` | arbre correct, racines comprises |
+| `Browse_FilDArianeRemonteALaRacine` | chemin reconstruit sans erreur |
+| `Opener_RefuseUnCheminDisparu` | aucune tentative d'ouverture d'un fichier absent |
+| `Opener_NeModifieRien` | garde-fou : aucune API d'écriture dans `Shell` |
+| `Comparison_DistingueSuppressionEtZoneNonAnalysee` | **la règle la plus importante** |
+| `Comparison_DetecteAjoutSuppressionModification` | jeu de référence créé, modifié, supprimé |
+| `Comparison_RefuseDesDisquesDifferents` | comparaison par disque, jamais silencieuse |
+| `Software_FiltreSystemComponentEtParentKeyName` | filtrage du registre correct |
 | `ProjectDetector_IgnoreNodeModules` | pas de faux projets |
-| `Scanning_NeContientAucuneApiEcriture` | garde-fou de lecture seule (analyse par réflexion) |
 
-Le projet de tests utilise des **dossiers temporaires réels** pour le scan et une base
-SQLite temporaire pour la comparaison. Aucune interface n'est nécessaire : on teste le
-code réel, pas des doublures. C'est plus fiable et plus court.
+Vingt tests, dont quatorze sur la rubrique Fichiers. Les tests utilisent des **dossiers
+temporaires réels** et une base SQLite temporaire : aucune doublure, aucun faux système
+de fichiers.
 
 ---
 
@@ -153,17 +190,19 @@ code réel, pas des doublures. C'est plus fiable et plus court.
 
 | Fichier | Rôle | Taille attendue |
 |---|---|---|
-| `Data/Schema.sql` | les 10 tables et les index, en un seul script | ~120 lignes |
-| `Data/Database.cs` | ouverture, `PRAGMA`, exécution du schéma, version | ~120 lignes |
-| `Data/ScanStore.cs` | insertion par lots, transactions | ~150 lignes |
+| `Data/Schema.sql` | les 11 tables et les index | ~140 lignes |
+| `Data/Database.cs` | ouverture, `PRAGMA`, schéma, version | ~120 lignes |
+| `Data/ScanStore.cs` | insertion par lots, transactions, clôture des racines | ~180 lignes |
+| `Data/BrowseQueries.cs` | disques, enfants, contenu, fil d'Ariane | ~150 lignes |
+| `Data/SearchQueries.cs` | recherche, filtres, comptage, tri | ~220 lignes |
 | `Data/ComparisonQueries.cs` | 4 requêtes + lecture | ~200 lignes |
-| `Scanning/FileScanner.cs` | parcours, totaux, progression, annulation | ~200 lignes |
-| `Collecting/ComputerCollector.cs` | 7 requêtes WMI + registre | ~180 lignes |
-| `Collecting/ToolCollector.cs` | résolution + versions | ~180 lignes |
-| `ViewModels/FilesViewModel.cs` | arbre, tableau, recherche | ~200 lignes |
-| `Views/*.xaml` | 7 vues | 80-150 lignes chacune |
+| `Scanning/FileScanner.cs` | parcours d'une racine, totaux, progression, annulation | ~220 lignes |
+| `Shell/ItemOpener.cs` | existence, ouverture, messages | ~80 lignes |
+| `ViewModels/FilesViewModel.cs` | arbre, sélection, fil d'Ariane, disques | ~230 lignes |
+| `ViewModels/SearchViewModel.cs` | saisie, filtres, pages, annulation | ~250 lignes |
+| `Views/FilesView.xaml` | la vue la plus riche | ~260 lignes de XAML |
 
-Aucun fichier ne devrait dépasser 300 lignes. Au-delà, c'est le signe qu'une
+Aucun fichier ne devrait dépasser ~260 lignes. Au-delà, c'est le signe qu'une
 responsabilité a été mal placée.
 
 ---
@@ -179,9 +218,8 @@ responsabilité a été mal placée.
 Rien d'autre n'est écrit. Aucune clé de registre, aucun fichier dans `Program Files`,
 aucun service.
 
-**Distribution** : un dossier compressé contenant l'exécutable et la DLL SQLite.
-Aucun installeur, aucun désinstalleur : supprimer le dossier suffit, la base restant
-dans `%LOCALAPPDATA%` si l'utilisateur veut la conserver.
+**Distribution** : un dossier compressé contenant l'exécutable et la DLL SQLite. Aucun
+installeur, aucun désinstalleur.
 
 ---
 
@@ -191,9 +229,8 @@ dans `%LOCALAPPDATA%` si l'utilisateur veut la conserver.
 - `PascalCase` pour les types et membres publics, `_camelCase` pour les champs privés.
 - Un type public par fichier, nom du fichier = nom du type.
 - `LangVersion` par défaut de `net48` (C# 7.3). Pas de polyfill, pas de `record`, pas
-  de `init` : la syntaxe disponible suffit largement.
-- Pas d'analyseurs supplémentaires, pas de règles de style exotiques : `.editorconfig`
-  pour l'encodage et les fins de ligne seulement.
+  de `init`.
+- `.editorconfig` pour l'encodage et les fins de ligne seulement.
 - Commits : `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
 
 ---

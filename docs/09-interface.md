@@ -1,11 +1,13 @@
-# Livrable 6 — Interface : sept rubriques, sans complexité
+# Livrable 6 — Interface : sept rubriques, la recherche au centre
 
-Maquette : **`assets/maquette-atlas-pc.png`** (ambiance et proportions ; les libellés
-exacts font foi dans ce document).
+Maquettes : **`assets/maquette-fichiers.png`** (la rubrique centrale) et
+**`assets/maquette-atlas-pc.png`** (tableau de bord). Les libellés exacts font foi dans
+ce document.
 
-> **Révision du 17 novembre 2026.** La rubrique « Rapports » est **supprimée** (aucune
-> fonction d'export). Le treemap et l'anneau sont **supprimés** — pas reportés. Les
-> graphiques se limitent à des barres horizontales.
+> **Révision du 17 novembre 2026 (2ᵉ).** La rubrique Fichiers n'est plus un simple
+> tableau d'inventaire : elle devient un **explorateur avec recherche**, et c'est elle
+> qui fixe le niveau d'exigence de l'interface. La palette gagne des **nuances** :
+> familles de fichiers, états, remplissage des disques, rampe de barres.
 
 ---
 
@@ -14,14 +16,12 @@ exacts font foi dans ce document).
 | Paramètre | Valeur |
 |---|---|
 | Écran cible | 1440 × 900, 96 DPI |
-| Fenêtre par défaut | 1360 × 820, redimensionnable, minimum 1100 × 700 |
+| Fenêtre par défaut | 1360 × 820, redimensionnable, minimum 1120 × 700 |
 | Barre latérale | 232 px fixes, **7 entrées** |
 | Barre supérieure | 56 px : titre + contexte + action principale |
 | Zone de contenu | ≈ 1 144 px après marges de 32 px |
-| Densité | grille de 8 px, cartes 16 px de padding |
-| Défilement | vertical uniquement dans la zone de contenu |
-
-Aucune vue ne doit provoquer de défilement horizontal à 1440 de large.
+| Densité | grille de 8 px, cartes 16 px de padding, lignes de tableau 28 px |
+| Défilement | vertical dans la zone de contenu ; **aucun** défilement horizontal |
 
 ---
 
@@ -30,7 +30,7 @@ Aucune vue ne doit provoquer de défilement horizontal à 1440 de large.
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │ ┌────────────┐ ┌───────────────────────────────────────────────────────┐  │
-│ │ ◈ ATLAS PC │ │ Tableau de bord     [Dernier inventaire : …] [Lancer] │  │
+│ │ ◈ ATLAS PC │ │ Fichiers              [Rechercher…]  [Lancer un inv.] │  │
 │ │            │ ├───────────────────────────────────────────────────────┤  │
 │ │ ▸ Tableau  │ │                                                       │  │
 │ │   Ordinateur│ │              zone de contenu                          │  │
@@ -45,42 +45,84 @@ Aucune vue ne doit provoquer de défilement horizontal à 1440 de large.
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **7 entrées**, dans l'ordre du cahier des charges révisé. Une seule active à la fois
-  (fond teinté + barre d'accent de 3 px).
-- Pied de barre latérale : « 100 % local » et la version. Rien d'autre.
-- **Badge d'état** à côté de la date : `Complet` (teal), `Partiel` (ambre),
-  `Annulé` (gris). Toujours avec un texte, jamais seulement une couleur.
-- **Bandeau de progression** pendant un inventaire, à la place de la ligne de contexte :
-
-```
-Énumération · C:\Users\...\AppData\Local\Microsoft\Edge
-[███████████░░░░░░░░░]  312 418 fichiers · 41 Go · 4 min 08 s      [Annuler]
-```
-
-Non modal : l'utilisateur peut consulter l'inventaire précédent pendant le scan.
+- **7 entrées**, une seule active (fond teinté `accent-50` + barre d'accent 3 px).
+- La **zone de recherche** de la barre supérieure est permanente à partir de la
+  rubrique Fichiers : elle garde la même place sur les six autres rubriques, où elle
+  lance la recherche et bascule sur Fichiers.
 
 ---
 
-## 3. Jetons de conception
+## 3. Couleurs et typographie — les nuances
 
-### Couleurs
+### 3.1 Neutres et accent
 
 | Rôle | Valeur |
 |---|---|
 | Fond de page | `#F7F5F0` |
 | Surface | `#FFFFFF` |
+| Surface alternée (lignes paires) | `#FBFAF7` |
 | Bordure | `#E3E0D8` |
+| Bordure forte | `#CFCABE` |
 | Texte principal | `#1F2933` |
 | Texte secondaire | `#6B7280` |
-| Accent | `#2F7F79` |
-| Accent doux | `#E6F0EE` |
-| Ambre (partiel) | `#B7791F` / fond `#FBF3E2` |
-| Rouge (échec) | `#A03A2E` / fond `#FBECEA` |
-| Barres neutres | `#9AA0A6` |
+| Texte désactivé | `#A6ABB3` |
 
-Une seule couleur d'accent. Pas de dégradé, pas d'ombre portée.
+**Rampe d'accent** (teal) — c'est elle qui donne la nuance sans casser la sobriété :
 
-### Typographie (Segoe UI, fournie par Windows)
+| Jeton | Valeur | Usage |
+|---|---|---|
+| `accent-50` | `#EAF3F1` | fond de l'entrée de menu active, en-têtes de tableau |
+| `accent-100` | `#D3E7E3` | survol, sélection de ligne |
+| `accent-300` | `#8FC0B9` | barres secondaires |
+| `accent-500` | `#2F7F79` | bouton principal, barres principales, liens |
+| `accent-700` | `#1F5D58` | survol du bouton principal, texte sur fond clair |
+
+### 3.2 Couleurs de familles de fichiers
+
+Elles servent de **pastille de 8 px** devant le nom et de **fond de badge** (teinte à
+12 %) sur la colonne Type. Elles ne colorent jamais une ligne entière.
+
+| Famille | Couleur | Fond du badge | Extensions (extrait) |
+|---|---|---|---|
+| Documents | `#2F6FA0` | `#E7EFF6` | pdf, docx, xlsx, pptx, txt, odt, csv |
+| Images | `#7A5AA6` | `#F0ECF7` | jpg, png, gif, bmp, tif, webp, svg |
+| Vidéos | `#B5563F` | `#F8EBE8` | mp4, mkv, avi, mov, wmv |
+| Audio | `#B7791F` | `#FBF3E2` | mp3, wav, flac, m4a, ogg |
+| Archives | `#8A6A3E` | `#F5EFE6` | zip, 7z, rar, iso, gz |
+| Code | `#2F7F79` | `#E6F0EE` | cs, js, ts, py, json, xml, html, css, sql |
+| Exécutables | `#5C6570` | `#ECEEEF` | exe, dll, msi, sys, bat, ps1 |
+| Autres | `#9AA0A6` | `#F2F3F4` | tout le reste, y compris sans extension |
+
+Le dictionnaire famille → extensions est **statique dans le code** (~30 familles,
+majoritairement les 8 ci-dessus) : aucune table, aucune requête supplémentaire.
+
+### 3.3 Couleurs d'état
+
+| État | Texte | Fond | Emploi |
+|---|---|---|---|
+| Complet | `#2F7F79` | `#E6F0EE` | inventaire ou disque entièrement analysé |
+| Partiel | `#B7791F` | `#FBF3E2` | zones non analysées |
+| Inaccessible / Annulé | `#A03A2E` | `#FBECEA` | disque refusé, inventaire annulé |
+| Information | `#2F6FA0` | `#E7EFF6` | note neutre (ex. « inventaire du 03/11 ») |
+
+### 3.4 Remplissage des disques
+
+Une barre par volume, dont la couleur **porte un sens** :
+
+| Taux occupé | Couleur |
+|---|---|
+| < 70 % | `accent-500` `#2F7F79` |
+| 70-85 % | `#B7791F` |
+| > 85 % | `#A03A2E` |
+
+### 3.5 Rampe des barres
+
+Dans le panneau « Répartition par dossier » et le tableau de bord, les barres suivent
+une rampe de cinq teintes dégressives — `#2F7F79`, `#4A918B`, `#6BA8A1`, `#8FC0B9`,
+`#B3D3CE` — plutôt qu'un gris unique : la hiérarchie se lit d'un coup d'œil, sans
+légende.
+
+### 3.6 Typographie (Segoe UI, fournie par Windows)
 
 | Élément | Taille |
 |---|---|
@@ -90,28 +132,150 @@ Une seule couleur d'accent. Pas de dégradé, pas d'ombre portée.
 | Titre de panneau | 14 px Semibold |
 | Corps de tableau | 13 px |
 | En-tête de colonne | 12 px Semibold secondaire |
+| Chemin (colonne `Chemin`, fil d'Ariane) | 12 px, `#6B7280` |
 
-Hauteur de ligne : 28 px.
+Aucune ombre portée, aucun dégradé, aucune transparence (compatibilité GPU ancien).
 
 ---
 
-## 4. Les sept écrans
+## 4. Rubrique **Fichiers** — la fonction centrale
 
-### 4.1 Tableau de bord
+### 4.1 Disposition
 
-1. **Quatre cartes** : Processeur · Mémoire · Stockage · Fichiers.
-2. **Panneau « Répartition par dossier »** : barres horizontales, top 8 des dossiers
-   de premier niveau, valeur à droite.
-3. **Panneau « Types de fichiers »** : les 6 extensions les plus volumineuses, en
-   lignes avec une barre fine — **pas d'anneau, pas de camembert**.
-4. **Tableau « Inventaires »** : Date · Fichiers · Taille · État · **Supprimer**.
-   C'est là que l'utilisateur gère son historique.
-5. Si le dernier inventaire est partiel : bandeau ambre
-   « 12 dossiers n'ont pas pu être lus ».
+```
+┌ Fichiers ─────────────────────────────────── [⌕ Rechercher un fichier ou un dossier] ┐
+│ Disques :  ● C: 312 Go (complet)   ● D: 148 Go (partiel)   ○ E: non analysé          │
+│ C:\ › Users › william › Documents › Factures                        [Copier le chemin]│
+├──────────────────────┬──────────────────────────────────────────────────────────────┤
+│ DOSSIERS        312 Go│ [Extension ▾] [Type ▾] [Taille ▾] [Date ▾] [Emplacement ▾]  │
+│ ▾ C:\           312 Go│ 1 204 résultats (200 affichés) · ⚠ 12 zones non analysées    │
+│   ▾ Users        74 Go│ ┌────┬──────────────┬──────────┬────────┬──────────┬────────┐│
+│     ▾ william    61 Go│ │ ●  │ Nom          │ Type     │ Taille │ Modifié  │ Chemin ││
+│       ▸ Documents 12 Go│ ├────┼──────────────┼──────────┼────────┼──────────┼────────┤│
+│       ▸ Images    9 Go│ │ ●  │ 2026-03.pdf  │ Document │ 1,2 Mo │ 12/11/26 │ C:\…   ││
+│   ▸ Windows      98 Go│ │ ●  │ budget.xlsx  │ Tableur  │ 84 Ko  │ 03/11/26 │ C:\…   ││
+│   ▸ Program Files 31 Go│ │ …  │              │          │        │          │        ││
+├──────────────────────┴──────────────────────────────────────────────────────────────┤
+│ C:\Users\william\Documents\Factures · 148 fichiers · 7 sous-dossiers · 1,4 Go        │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-### 4.2 Ordinateur
+Cinq zones, dans cet ordre de lecture :
 
-Deux colonnes de fiches :
+1. **Zone de recherche**, en haut à droite de la barre de titre, large (420 px) et
+   toujours au même endroit. `Ctrl+F` y place le curseur.
+2. **Sélecteur de disques** : une pastille d'état par disque (`●` complet, `●` partiel,
+   `○` non analysé), taille, et le nom du volume en info-bulle. Un clic filtre sur ce
+   disque ; « Tous » est l'état par défaut.
+3. **Fil d'Ariane**, cliquable à chaque niveau, avec un bouton *Copier le chemin* à
+   droite.
+4. **Arbre** (320 px) à gauche, **résultats** à droite, avec sa barre de filtres.
+5. **Ligne d'état** en bas : dossier courant, nombre de fichiers, de sous-dossiers,
+   taille, et le rappel de couverture.
+
+### 4.2 L'arbre
+
+- nœuds chargés **au dépliage** uniquement ;
+- chaque nœud : nom, taille cumulée alignée à droite, chevron ; l'info-bulle donne
+  « 4 812 fichiers · 48 sous-dossiers · modifié le 12/11/2026 » ;
+- un dossier non analysé porte une pastille ambre et un texte `non analysé` en
+  info-bulle ;
+- tri par taille décroissante (le plus gros d'abord), option « ordre alphabétique » ;
+- le nœud sélectionné est teinté `accent-50` avec la barre d'accent à gauche.
+
+### 4.3 Le tableau des résultats
+
+| Colonne | Largeur | Contenu |
+|---|---|---|
+| ● | 24 px | pastille de famille (couleur du § 3.2) |
+| Nom | 260 px | nom, tronqué à droite, info-bulle = nom complet |
+| Type | 110 px | libellé de famille sur fond teinté (`Document`, `Image`…) |
+| Taille | 90 px | aligné à droite, formaté (`1,2 Mo`), tri numérique |
+| Modifié | 100 px | `12/11/2026 14:32` |
+| Chemin | reste | dossier, **élidé au milieu**, info-bulle = chemin complet |
+
+- **pagination de 200 lignes** au défilement, jamais de chargement global ;
+- tri sur les colonnes Nom, Type, Taille, Modifié, Chemin (le nom complète toujours le
+  tri pour rester déterministe) ;
+- ligne survolée `accent-50`, sélection `accent-100` ;
+- **double-clic** : ouvre l'élément ; **menu contextuel** : *Ouvrir* · *Ouvrir
+  l'emplacement* · *Copier le chemin* · *Copier le nom* ;
+- la colonne Chemin reste lisible : les chemins très longs sont élidés au **milieu**
+  (`C:\Users\…\Factures\2026-03.pdf`) et complets en info-bulle.
+
+### 4.4 Les filtres
+
+Cinq listes déroulantes compactes (150 px chacune), sur une seule ligne :
+
+| Filtre | Contenu | Comportement |
+|---|---|---|
+| Extension | liste des extensions présentes, avec compteur | choix multiple, case à cocher |
+| Type | les 8 familles du § 3.2 | choix multiple, pastille de couleur |
+| Taille | `< 10 Ko`, `10 Ko - 1 Mo`, `1 - 100 Mo`, `100 Mo - 1 Go`, `> 1 Go`, personnalisé | une seule valeur |
+| Date | Aujourd'hui, 7 jours, 30 jours, cette année, personnalisé | une seule valeur |
+| Emplacement | dossier courant, disque courant, tous les disques | une seule valeur |
+
+Chaque filtre actif prend la teinte `accent-50` avec un liseré `accent-300` et une croix
+de retrait. Un bouton *Tout effacer* apparaît dès qu'un filtre est actif. Le compteur
+« 1 204 résultats (200 affichés) » est placé à droite de la ligne de filtres, suivi de la
+mention de couverture.
+
+### 4.5 La recherche
+
+- une seule zone, un seul comportement visible : l'utilisateur tape, les résultats
+  arrivent ; la stratégie (préfixe indexé, puis sous-chaîne sur l'index des noms) est
+  invisible ;
+- pendant une recherche de plus d'une seconde : un liseré animé sur la zone et un bouton
+  *Annuler* — l'interface ne se fige jamais ;
+- saisie de 1 ou 2 caractères : mention « recherche large, résultats limités » ;
+- `Échap` efface la recherche, `Ctrl+F` y revient ;
+- la recherche porte sur **tous les disques** de l'inventaire choisi, sauf si le filtre
+  Emplacement en décide autrement — et l'interface le dit dans le compteur.
+
+### 4.6 Couverture : quatre affichages, jamais un total trompeur
+
+| Situation | Affichage |
+|---|---|
+| un disque partiel | pastille ambre + `⚠ 12 zones non analysées` cliquable (ouvre la liste) |
+| disque non accessible | pastille rouge + `non accessible`, disque non coché par défaut |
+| dossier non lisible | ligne rouge dans le tableau des sous-dossiers, `Accès refusé` |
+| inventaire annulé / en cours | bandeau : « inventaire incomplet — les résultats ne couvrent pas tout le disque » |
+
+Le nombre de résultats est **toujours** accompagné de cette mention ; aucun écran
+n'affiche un total nu.
+
+### 4.7 Ouverture d'un élément
+
+- soit le chemin existe encore : ouverture immédiate (dossier → Explorateur, fichier →
+  application associée) ;
+- soit il a disparu : message discret sous la barre d'outils — « ce fichier n'existe plus
+  depuis l'inventaire du 03/11/2026 » — et aucune tentative d'ouverture ;
+- jamais de boîte de dialogue bloquante, jamais d'erreur système brute.
+
+### 4.8 États vides
+
+| État | Message et action |
+|---|---|
+| aucun inventaire | « Aucun inventaire. Lancez-en un pour pouvoir chercher vos fichiers. » + bouton |
+| recherche sans résultat | « Aucun élément ne correspond à “xyz” dans `C:` et `D:` » + *Effacer les filtres* |
+| dossier vide | « Ce dossier ne contient aucun fichier. » (distinct de « non analysé ») |
+| disque non analysé | « `E:` n'a pas été analysé. » + *Lancer un inventaire* |
+
+---
+
+## 5. Les six autres rubriques
+
+### 5.1 Tableau de bord
+
+1. **Quatre cartes**, chacune avec une icône sur fond teinté (quatre teintes
+   différentes : teal, bleu, violet, ambre) : Processeur · Mémoire · Stockage · Fichiers.
+2. **Disques et remplissage** : une barre par volume, couleur selon le taux (§ 3.4).
+3. **Répartition par dossier** : barres horizontales, rampe du § 3.5, top 8.
+4. **Types de fichiers** : 6 lignes avec pastille de famille et barre fine.
+5. **Inventaires** : date · disques · fichiers · taille · état · **Supprimer**.
+6. Bandeau ambre si le dernier inventaire est partiel, avec lien vers la liste des zones.
+
+### 5.2 Ordinateur
 
 | Gauche | Droite |
 |---|---|
@@ -120,119 +284,69 @@ Deux colonnes de fiches :
 | Carte graphique (nom) | BIOS (éditeur, version) |
 
 Puis un tableau **Disques et volumes** : disque · volume · système de fichiers ·
-capacité · libre · % utilisé (avec une barre fine dans la cellule).
+capacité · libre · % utilisé (barre colorée). Valeur absente : `—` + info-bulle.
 
-Une valeur absente s'affiche `—` avec une info-bulle ; jamais `0`, jamais vide.
+### 5.3 Logiciels
 
-### 4.3 Fichiers
+Compteur « 247 logiciels installés », tableau Nom · Version · Éditeur · Emplacement ·
+Date, recherche par nom.
 
-```
-┌ Espace analysé : [C:\ ▾]     [Rechercher un nom…]                        ┐
-├───────────────────────────┬──────────────────────────────────────────────┤
-│ Dossiers (320 px)         │ Fichiers                                     │
-│ ▾ C:\            312 Go   │ Nom           Ext.   Taille   Modifié        │
-│   ▾ Windows       98 Go   │ pagefile.sys  .sys   4,0 Go   12/11/2026     │
-│     ▸ WinSxS      12 Go   │ …                                            │
-│   ▸ Utilisateurs  74 Go   │                                              │
-├───────────────────────────┴──────────────────────────────────────────────┤
-│ 412 806 fichiers · 61 208 dossiers · 312 Go · 12 dossiers non analysés   │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+### 5.4 Outils
 
-- Arborescence **paresseuse**, construite depuis `parent_path`, triée par taille.
-- Tableau **virtualisé**, 5 colonnes, triable.
-- Recherche par nom : filtre `LIKE`, plafonné à 500 résultats.
-- Ligne d'état permanente. Le compteur « dossiers non analysés » est **cliquable** et
-  ouvre la liste des zones en erreur.
-- Pas de colonne « chemin complet » : le dossier courant est dans l'en-tête, le chemin
-  est en info-bulle.
+Six fiches 3 × 2 : nom, version, chemin, état (`Détecté` teal · `Non détecté` gris ·
+`Échec` rouge). Bouton *Relancer la détection*.
 
-### 4.4 Logiciels
+### 5.5 Développement
 
-- Compteur : « 247 logiciels installés ».
-- Tableau : Nom · Version · Éditeur · Emplacement · Date d'installation.
-- Recherche par nom.
-- Aucun filtre par source : il n'y a qu'une source (le registre).
+Pastilles de filtre `Tous` · `Python` · `Node.js`, tableau Projet · Chemin · Type ·
+Dépôt Git, compteurs.
 
-### 4.5 Outils
+### 5.6 Évolution
 
-Six fiches, 3 × 2 :
-
-```
-Python                                    ● Détecté
-3.11.9
-C:\Users\…\Python311\python.exe
-```
-
-États : `Détecté` · `Non détecté` · `Échec`. Un bouton global « Relancer la
-détection ».
-
-### 4.6 Développement
-
-- Filtres en pastilles : `Tous` · `Python` · `Node.js`.
-- Tableau : Projet · Chemin · Type · Dépôt Git (oui / —).
-- Compteur : « 12 projets Python · 8 projets Node.js · 14 dépôts Git ».
-
-Aucune vue de dépendances, aucune analyse de `.git`.
-
-### 4.7 Évolution
-
-```
-┌ Inventaire A : [03/11/2026 08:40 ▾]   →   Inventaire B : [17/11/2026 09:12 ▾] ┐
-├ 4 blocs :  +1 204 fichiers   ·   −318 fichiers   ·   97 modifiés   ·   +4,2 Go  ┤
-├ Onglets : Ajoutés | Supprimés | Modifiés | Espace occupé                       ┤
-├ Tableau filtré (virtualisé), plafonné à 500 lignes                             ┘
-```
-
-- Le sens `A → B` est toujours affiché.
-- L'onglet « Supprimés » sépare **suppressions confirmées** et **disparitions non
-  vérifiables** (avec la zone responsable). C'est l'application directe de la règle.
-- Si l'un des inventaires est **partiel**, un bandeau le rappelle en haut de l'onglet.
-- L'onglet « Espace occupé » affiche le delta global puis le delta par dossier de
-  premier niveau.
-- Si les deux inventaires n'ont pas la même racine (`C:\` vs `D:\`), la comparaison est
-  refusée avec un message explicite.
+Sélecteurs A et B (avec les disques couverts et l'état de chacun), quatre blocs de
+synthèse (+ajoutés · −supprimés · modifiés · espace), quatre onglets : *Ajoutés*,
+*Supprimés*, *Modifiés*, *Espace occupé*. L'onglet *Supprimés* sépare les
+**suppressions confirmées** des **disparitions non vérifiables**, chaque ligne portant
+la zone responsable. Si les deux inventaires ne couvrent pas les mêmes disques, la
+comparaison est refusée disque par disque, avec explication.
 
 ---
 
-## 5. États et comportements
+## 6. États et comportements transverses
 
 | Situation | Comportement |
 |---|---|
-| Aucun inventaire | état vide utile : « Aucun inventaire. [Lancer un inventaire] » |
-| Inventaire en cours | bandeau non modal, navigation possible, annulation possible |
-| Inventaire partiel | badge ambre partout + compteur de zones + onglet dédié |
-| Erreur de collecte | la section concernée affiche `—`, le reste continue |
-| Base absente ou illisible | message clair, proposition de recréer la base (renommage du fichier) |
-| Suppression d'inventaire | confirmation, puis suppression en cascade |
+| inventaire en cours | bandeau non modal ; navigation possible ; annulation possible |
+| erreur de collecte | la section concernée affiche `—`, le reste continue |
+| base absente ou illisible | message clair + proposition de recréer la base (renommage) |
+| suppression d'inventaire | confirmation indiquant ce qui sera perdu |
+| ouverture d'un élément absent | message informatif, non bloquant |
 
-Aucune boîte de dialogue modale pendant un inventaire.
+Aucune boîte modale pendant un inventaire.
 
 ---
 
-## 6. Ce qui n'est pas dans l'interface
+## 7. Ce qui reste hors de l'interface
 
 | Absent | Motif |
 |---|---|
-| Rubrique « Rapports », bouton « Exporter » | fonction retirée du périmètre |
-| Treemap, anneau, camembert, courbe | coût de développement et de lisibilité |
-| Filtres par taille / date / type avancés | non demandés |
-| Options, préférences, thèmes au choix | un thème clair unique suffit |
-| Statistiques de performance du scan | non demandées |
-| Boutons de nettoyage, corbeille, optimisation | contraire à la lecture seule |
-
-La seule visualisation est **la barre horizontale** : dans les cartes du tableau de
-bord, dans le panneau de répartition, et dans les cellules de pourcentage. Un seul
-composant à écrire, une seule chose à tester.
+| rubrique « Rapports », bouton « Exporter » | fonction retirée du périmètre |
+| treemap, anneau, camembert, courbe | coût et lisibilité ; barres suffisantes |
+| recherche dans le contenu, OCR | hors périmètre V1 |
+| renommer, déplacer, supprimer, corbeille | lecture seule |
+| détection de doublons | hors périmètre V1 |
+| options, thèmes au choix | un thème clair unique |
 
 ---
 
-## 7. Lisibilité
+## 8. Lisibilité et accessibilité
 
-- Contraste : texte principal > 12:1, secondaire > 4,5:1.
-- Aucune information uniquement colorée : chaque badge porte un texte.
-- Police minimale 11 px.
-- Navigation clavier : `Tab`, flèches dans les tableaux, `Entrée` pour ouvrir,
-  `Échap` pour annuler un inventaire.
-- Raccourcis : `Ctrl+I` lancer · `Échap` annuler · `Ctrl+F` rechercher.
-  Aucun raccourci destructif.
+- contraste : texte principal > 12:1, secondaire > 4,5:1 ; les couleurs de famille ne
+  sont **jamais** seules porteuses d'information (la colonne Type écrit le libellé) ;
+- police minimale 11 px ;
+- navigation clavier complète : `Tab`, flèches dans l'arbre et les tableaux, `Entrée`
+  pour ouvrir, `Échap` pour annuler un scan ou vider la recherche ;
+- raccourcis : `Ctrl+F` rechercher · `Ctrl+C` copier le chemin de la ligne · `Ctrl+I`
+  lancer un inventaire · `Échap` annuler. Aucun raccourci destructif ;
+- mode contraste élevé de Windows : les teintes de fond sont remplacées par des
+  bordures, la pastille par un libellé.

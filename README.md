@@ -4,10 +4,12 @@
 (matériel, Windows, fichiers, logiciels, outils de développement, projets), avec
 historique et comparaison d'inventaires.
 
-> **Version 2.0 — 17 novembre 2026.** Périmètre simplifié : un seul projet, dix tables
-> SQLite, sept rubriques, cinq étapes. Ce qui a été retiré a été **supprimé**, pas
-> reporté — la liste et les motifs sont dans
-> [`docs/00-lisez-moi.md`](docs/00-lisez-moi.md) § 5.
+> **Version 2.1 — 17 novembre 2026.** Périmètre simplifié (un seul projet, sept
+> rubriques, cinq étapes) et **priorité donnée à la rubrique Fichiers** : explorer,
+> rechercher, filtrer, ouvrir, copier un chemin. Ce qui a été retiré l'a été
+> **supprimé**, pas reporté — liste et motifs dans
+> [`docs/00-lisez-moi.md`](docs/00-lisez-moi.md) § 5 ; ce que cette priorité ajoute et
+> rétablit est au § 5.9.
 
 **Machine cible** : Dell OptiPlex 780 · Windows 10 22H2 x64 · 6 Go de RAM · disque dur
 mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits administrateur.
@@ -29,13 +31,13 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 | [`docs/05-tableau-comparatif.md`](docs/05-tableau-comparatif.md) | Comparaison technique, fonctionnelle et notation pondérée |
 | [`docs/06-licences-et-risques.md`](docs/06-licences-et-risques.md) | Licences, compatibilité, inspiration vs copie |
 | [`docs/07-architecture-cible.md`](docs/07-architecture-cible.md) | Architecture recommandée et justification de chaque choix |
-| [`docs/08-modele-sqlite.md`](docs/08-modele-sqlite.md) | Schéma de base (10 tables), requêtes de comparaison, rétention manuelle |
+| [`docs/08-modele-sqlite.md`](docs/08-modele-sqlite.md) | Schéma (11 tables), requêtes de navigation et de recherche, comparaison, rétention manuelle |
 | [`docs/09-interface.md`](docs/09-interface.md) | Maquette et spécification des sept rubriques |
 | [`docs/10-arborescence-projet.md`](docs/10-arborescence-projet.md) | Organisation prévue du futur code source |
-| [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Cinq étapes, tests, critères de validation |
+| [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Cinq étapes (dont 3A scan / 3B rubrique Fichiers), tests, critères |
 | [`docs/12-risques-et-limites.md`](docs/12-risques-et-limites.md) | Risques, limites, points à vérifier |
 
-Maquette indicative : [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.png)
+Maquettes : [`assets/maquette-fichiers.png`](assets/maquette-fichiers.png) (la rubrique centrale) et [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.png) (tableau de bord)
 
 ---
 
@@ -46,8 +48,10 @@ Maquette indicative : [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.
 | Projet | **un seul projet WPF**, dossiers par responsabilité | moins de couches, moins de fichiers |
 | Runtime | **.NET Framework 4.8** (`net48`), cible **unique**, projet au format SDK | présent dans Windows 10 22H2, aucun runtime à installer, démarrage à froid rapide sur disque mécanique |
 | Interface | **WPF**, thème clair sobre, `DataGrid` virtualisé | mature, DPI-aware, pas de dépendance graphique lourde |
-| Base | **SQLite, 10 tables** | fichier unique, comparaison en SQL, aucun service |
+| Base | **SQLite, 11 tables** | fichier unique, recherche et comparaison en SQL, aucun service |
 | Scan | **un seul travailleur**, API standard .NET, écriture par lots de 500 | disque mécanique bi-cœur, mémoire bornée |
+| Recherche | **index sur le nom**, deux niveaux (préfixe indexé, puis sous-chaîne) | rapide sans index plein texte ; FTS5 seulement si la mesure l'exige |
+| Priorité | la **rubrique Fichiers** concentre l'effort (étape 3B, 5 jours) | c'est la fonction qui justifie le logiciel |
 | Historique | comparaison par **chemin complet normalisé**, suppression **manuelle** | comparaison fichier par fichier, sans hachage ni purge automatique |
 | Licence du futur projet | **MIT** (ou Apache-2.0 si publication communautaire) | compatible avec les inspirations permises, exclut toute copie GPL |
 

@@ -1,7 +1,8 @@
 # ATLAS PC — Dossier technique préalable (V1 simplifiée)
 
 **Étude technique, sans programmation.**
-Version 2.0 — 17 novembre 2026. Remplace la version 1.0 du même jour.
+Version 2.1 — 17 novembre 2026. Remplace la version 1.0 du même jour et la version 2.0
+publiée le matin même.
 
 ---
 
@@ -14,10 +15,16 @@ historique et comparaison de deux inventaires.
 **Machine cible** : Dell OptiPlex 780 · Windows 10 22H2 x64 · 6 Go de RAM · disque dur
 mécanique · 1440 × 900 · hors ligne · gratuit · sans droits administrateur.
 
-**Cette version 2.0 applique une consigne de simplification.** Le périmètre a été
-réduit, l'architecture ramenée à un seul projet, la base à dix tables, le plan de
-développement à cinq étapes. Ce qui a été retiré l'a été **franchement** : supprimé,
-pas déplacé dans une rubrique « plus tard ». Le détail et les motifs sont au § 5.
+**Deux consignes ont façonné ce dossier.**
+
+1. *Simplifier* (version 2.0) : architecture ramenée à un seul projet, base réduite,
+   plan resserré. Ce qui a été retiré l'a été **franchement** — supprimé, pas déplacé
+   dans une rubrique « plus tard ». Détail et motifs au § 5.
+2. *Faire de la rubrique Fichiers la fonction centrale* (version 2.1) : explorer,
+   **rechercher**, filtrer, ouvrir, copier. Conséquence : **une** table de plus
+   (`scan_root`, statut par disque), **deux** index de recherche, une étape de
+   développement supplémentaire (3A/3B) et une interface plus riche pour cette seule
+   rubrique. Détail au § 5.9.
 
 Aucune ligne de code applicatif n'a été écrite. Aucun dépôt étudié n'a été modifié.
 
@@ -57,7 +64,7 @@ binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
 | 3 | Licences et risques de réutilisation | [`06-licences-et-risques.md`](06-licences-et-risques.md) |
 | 4 | Architecture simplifiée | [`07-architecture-cible.md`](07-architecture-cible.md) |
 | 5 | Modèle SQLite réduit | [`08-modele-sqlite.md`](08-modele-sqlite.md) |
-| 6 | Interface (7 rubriques) | [`09-interface.md`](09-interface.md) + `assets/maquette-atlas-pc.png` |
+| 6 | Interface (7 rubriques) | [`09-interface.md`](09-interface.md) + `assets/maquette-fichiers.png` et `assets/maquette-atlas-pc.png` |
 | 7 | Arborescence du projet | [`10-arborescence-projet.md`](10-arborescence-projet.md) |
 | 8 | Plan en cinq étapes | [`11-plan-de-developpement.md`](11-plan-de-developpement.md) |
 | 9 | Risques, limites, points à vérifier | [`12-risques-et-limites.md`](12-risques-et-limites.md) |
@@ -72,7 +79,7 @@ binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
 |---|---|
 | **Tableau de bord** | 4 chiffres, répartition par dossier, types de fichiers, liste des inventaires |
 | **Ordinateur** | fabricant, modèle, CPU, RAM, GPU, BIOS, Windows, disques, volumes |
-| **Fichiers** | dossiers, fichiers : nom, dossier, extension, taille, date de modification |
+| **Fichiers** *(fonction centrale)* | **exploration** en arbre des disques et dossiers · **contenu** du dossier sélectionné · **recherche** par nom complet ou partiel sur tous les disques · **filtres** extension / type / taille / date / emplacement · **tri** par colonne · **chemin complet** · nombre de fichiers et de sous-dossiers · **ouvrir** un élément · **copier** son chemin · statut de couverture toujours affiché |
 | **Logiciels** | logiciels déclarés au registre (nom, version, éditeur, emplacement, date) |
 | **Outils** | Python, pip, Node.js, npm, Git, Tesseract : chemin, version, statut |
 | **Développement** | projets Python et Node.js par fichiers caractéristiques, indicateur Git |
@@ -84,7 +91,9 @@ binaire Windows n'a été lancé. Tout chiffre de durée ou de mémoire est une
 |---|---|---|
 | Projet | **un seul projet WPF**, dossiers par responsabilité | moins de couches, moins de fichiers, plus lisible |
 | Runtime | **.NET Framework 4.8, cible unique `net48`** | présent dans Windows 10 22H2, aucun runtime à installer, démarrage rapide sur disque dur |
-| Base | **SQLite, 10 tables**, un seul paquet NuGet | fichier unique, comparaison en SQL, aucune installation |
+| Base | **SQLite, 11 tables**, un seul paquet NuGet | fichier unique, recherche et comparaison en SQL, aucune installation |
+| Racines | **1 à n disques par inventaire**, un statut par disque | la recherche doit couvrir tous les disques, et l'outil doit dire lequel est incomplet |
+| Recherche | **index sur le nom**, deux niveaux (préfixe, puis sous-chaîne sur l'index) | rapide sans index plein texte ; FTS5 seulement si la mesure l'exige |
 | Parcours | **API standard .NET** (`DirectoryInfo.EnumerateFileSystemInfos`), **un thread**, écriture par lots de 500 | simplicité ; Win32 seulement si la mesure l'exige |
 | Mémoire | **aucun fichier conservé en mémoire** | pic visé < 200 Mo sur 6 Go |
 | Historique | comparaison par **chemin complet normalisé**, suppression **manuelle** | simplicité et maîtrise par l'utilisateur |
@@ -132,9 +141,9 @@ retiré du dossier, du périmètre et du plan — sauf mention explicite « repo
 
 | Supprimé | Remplacé par | Motif |
 |---|---|---|
-| 20 tables | **10 tables** | |
+| 20 tables | **11 tables** (10 en v2.0, + `scan_root` en v2.1) | |
 | `hw_computer`, `hw_cpu`, `hw_memory_module`, `hw_gpu`, `hw_disk`, `hw_partition`, `hw_volume`, `hw_bios`, `os_info` (9 tables) | **3 tables** : `computer`, `disk`, `volume` | une ligne de matériel n'a pas besoin de neuf tables |
-| `inventory_scope` (multi-racines) | `inventory.root_path` | une racine par inventaire suffit |
+| `inventory_scope` (multi-racines) | `inventory.root_path`, puis **`scan_root`** en v2.1 | une seule racine suffisait tant qu'il n'y avait pas de recherche ; voir § 5.9 |
 | `collect_status` et `field_note` (traçabilité par champ) | `—` affiché, `scan_issue` pour les erreurs de fichiers | coût de mise en œuvre très supérieur au bénéfice pour un outil personnel |
 | `file_type_stat`, `age_bucket_stat`, `size_bucket_stat` (statistiques pré-calculées) | **requêtes `GROUP BY` à la demande** | quelques centaines de lignes de code en moins, à mesurer |
 | `path_hash` (FNV-1a 64 bits) | **`folder_path` + `name`** avec index `COLLATE NOCASE` | « identification trop sophistiquée » ; la jointure sur deux colonnes est plus simple et couvre le besoin |
@@ -187,7 +196,7 @@ retiré du dossier, du périmètre et du plan — sauf mention explicite « repo
 | **Treemap** | coût de développement élevé, non exigé, faible lisibilité sans interactions coûteuses |
 | **Anneau / camembert** | remplacé par des lignes de barres |
 | Courbe d'évolution du stockage | non demandée |
-| Filtres avancés (taille, âge, type, propriétaire) | non demandés |
+| Filtres par propriétaire, par attributs | sans source fiable en V1 ; les filtres taille / date / type / emplacement, eux, sont **exigés** et présents |
 | Écran d'options, choix de thème | un thème clair unique suffit |
 | Raccourcis multiples | trois raccourcis |
 
@@ -215,21 +224,50 @@ et non de la technique :
 
 Ce sont les trois seules choses que la V1 ne peut pas simplifier.
 
+### 5.9 Ce que la version 2.1 **ajoute**, et ce qu'elle rétablit
+
+| Ajout | Motif | Coût |
+|---|---|---|
+| Table **`scan_root`** (11ᵉ table) : un statut par disque | la recherche doit couvrir **tous** les disques inventoriés et l'interface doit dire lequel est incomplet | +20 lignes de SQL, +1 requête |
+| Index **`ix_file_name`** (et `ix_file_size`) | rendre la recherche par nom rapide **sans** index plein texte | +30-45 Mo par inventaire |
+| Dossier **`Shell/`** : `ItemOpener`, `ClipboardHelper` | ouvrir un élément et copier son chemin, en restant en lecture seule | 2 fichiers, ~120 lignes |
+| **Filtres** extension / type / taille / date / emplacement | exigés par le cahier des charges révisé | ~80 lignes de SQL + 5 contrôles |
+| **Familles de types** (dictionnaire statique + couleurs) | lisibilité du tableau de résultats | 1 fichier, sans table |
+| Scission de l'étape 3 en **3A** (scan) et **3B** (rubrique Fichiers) | la fonction centrale mérite son propre jalon et ses propres critères | +4 jours (23 j au total) |
+| **Nuances de couleurs** (familles, états, remplissage disques, rampe de barres) | lisibilité ; le gris uniforme rendait la maquette plate | ~40 lignes de `Theme.xaml` |
+
+**Ce que la version 2.1 rétablit, contre la version 2.0.** Deux éléments avaient été
+retirés à tort, parce que le périmètre « simplifié » d'alors ne les prévoyait pas :
+
+| Rétabli | Pourquoi la v2.0 l'avait retiré | Pourquoi il revient |
+|---|---|---|
+| **Plusieurs racines par inventaire** | inutile tant que la recherche n'existait pas | la recherche doit porter sur tous les disques |
+| **Filtres avancés** (taille, date, type, emplacement) | « non demandés » | ils sont explicitement demandés |
+
+En revanche, **rien de ce qui suit ne revient** : exports, treemap, recherche dans le
+contenu, OCR, détection de doublons, hachage, rétention automatique, multi-ciblage,
+couches et interfaces.
+
+**Coût total de la version 2.1 : +4 jours** (23 au lieu de 19) et **+1 table**
+(11 au lieu de 10) — pour la fonction qui justifie le logiciel.
+
 ---
 
-## 6. Effet chiffré de la révision
+## 6. Effet chiffré des deux révisions
 
-| Indicateur | Dossier v1.0 | Dossier v2.0 |
-|---|---|---|
-| Projets | 6 + 5 tests | **1 + 1 test** |
-| Interfaces déclarées | 8 | **0** |
-| Tables SQLite | 20 | **10** |
-| Dépendances NuGet | 3 (SQLite, OxyPlot, MVVM) | **1** |
-| Jalons | 10 | **5** |
-| Durée estimée | 31-43 j | **19 j** |
-| Rubriques d'interface | 8 | **7** |
-| Formats d'export | 3 | **0** |
-| Documents du dossier | 14 | **13** |
+| Indicateur | v1.0 | v2.0 | **v2.1** |
+|---|---|---|---|
+| Projets | 6 + 5 tests | 1 + 1 test | **1 + 1 test** |
+| Interfaces déclarées | 8 | 0 | **0** |
+| Tables SQLite | 20 | 10 | **11** |
+| Dépendances NuGet | 3 | 1 | **1** |
+| Jalons | 10 | 5 | **5** (étape 3 scindée en 3A/3B) |
+| Durée estimée | 31-43 j | 19 j | **23 j** |
+| Rubriques d'interface | 8 | 7 | **7**, dont une (Fichiers) très au-dessus des autres |
+| Fonctions de recherche | non prévues | simples | **11 fonctions spécifiées** |
+| Formats d'export | 3 | 0 | **0** |
+| Documents du dossier | 14 | 13 | **13** |
+| Maquettes | 1 | 1 | **2** |
 
 ---
 
@@ -238,7 +276,8 @@ Ce sont les trois seules choses que la V1 ne peut pas simplifier.
 Trois décisions appartiennent au commanditaire, pas à l'étude
 ([`12-risques-et-limites.md`](12-risques-et-limites.md) § 5) :
 
-1. la racine analysée : `C:` seul, ou n'importe quel dossier choisi ;
+1. les **disques** à inventorier par défaut, et la possibilité d'en ajouter un plus tard
+   (disque externe, clé USB) ;
 2. l'espace occupé : la taille allouée est-elle nécessaire malgré tout, ou la somme des
    tailles suffit-elle ;
 3. le projet sera-t-il distribué (ce qui fixe le niveau de documentation utilisateur).
