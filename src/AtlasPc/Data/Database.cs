@@ -9,11 +9,13 @@ namespace AtlasPc.Data
     /// <summary>
     /// Ouvre le fichier SQLite unique de l'application et crée le schéma.
     /// Aucune migration : le schéma est créé en une fois, de façon idempotente.
+    /// Seule exception : deux colonnes ajoutées en v2, posées par
+    /// <see cref="EnsureColumn"/> sur une base créée avant elles.
     /// </summary>
     public sealed class Database : IDisposable
     {
         /// <summary>Numéro de schéma attendu par cette version du logiciel.</summary>
-        public const int SchemaVersion = 1;
+        public const int SchemaVersion = 2;
 
         private const string SchemaResourceName = "AtlasPc.Data.Schema.sql";
         private const string FolderName = "ATLAS PC";
@@ -134,17 +136,53 @@ namespace AtlasPc.Data
                 command.ExecuteNonQuery();
             }
 
+            EnsureColumn("computer", "cpu_threads", "INTEGER");
+            EnsureColumn("computer", "ram_usable_bytes", "INTEGER");
+
             var version = ReadUserVersion();
-            if (version == 0)
-            {
-                Execute("PRAGMA user_version = " + SchemaVersion.ToString(CultureInfo.InvariantCulture) + ";");
-            }
-            else if (version > SchemaVersion)
+            if (version > SchemaVersion)
             {
                 throw new InvalidDataException(
                     "La base a été créée par une version plus récente d'ATLAS PC (schéma " +
                     version.ToString(CultureInfo.InvariantCulture) + ", cette version lit le schéma " +
                     SchemaVersion.ToString(CultureInfo.InvariantCulture) + ").");
+            }
+
+            if (version != SchemaVersion)
+            {
+                Execute("PRAGMA user_version = " + SchemaVersion.ToString(CultureInfo.InvariantCulture) + ";");
+            }
+        }
+
+        /// <summary>
+        /// Ajoute une colonne si elle manque. Une base créée en v1 possède déjà la table
+        /// <c>computer</c> : <c>CREATE TABLE IF NOT EXISTS</c> n'y touche plus, d'où cette
+        /// vérification. Noms de table et de colonne fixés dans le code : aucune injection.
+        /// </summary>
+        private void EnsureColumn(string table, string column, string type)
+        {
+            var found = false;
+
+            using (var command = _connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(" + table + ");";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var name = reader.IsDBNull(1) ? null : reader.GetString(1);
+                        if (string.Equals(name, column, StringComparison.OrdinalIgnoreCase))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                Execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type + ";");
             }
         }
 

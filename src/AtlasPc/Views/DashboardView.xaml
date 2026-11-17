@@ -20,17 +20,17 @@
             </Grid.ColumnDefinitions>
 
             <controls:StatCard Grid.Column="0" Margin="0,0,16,0"
-                               Label="Processeur" Value="—" Hint="collecté à l'étape 2"
+                               Label="Processeur" Value="{Binding CpuText}" Hint="{Binding CpuHint}"
                                Icon="{StaticResource IconCpu}"
                                IconBackground="{StaticResource OkBackgroundBrush}"
                                IconForeground="{StaticResource OkForegroundBrush}" />
             <controls:StatCard Grid.Column="1" Margin="0,0,16,0"
-                               Label="Mémoire" Value="—" Hint="collectée à l'étape 2"
+                               Label="Mémoire installée" Value="{Binding RamText}" Hint="{Binding RamHint}"
                                Icon="{StaticResource IconMemory}"
                                IconBackground="{StaticResource InfoBackgroundBrush}"
                                IconForeground="{StaticResource InfoForegroundBrush}" />
             <controls:StatCard Grid.Column="2" Margin="0,0,16,0"
-                               Label="Stockage" Value="—" Hint="volumes à l'étape 2"
+                               Label="Stockage" Value="{Binding StorageText}" Hint="{Binding StorageHint}"
                                Icon="{StaticResource IconDisk}"
                                IconBackground="{StaticResource WarnBackgroundBrush}"
                                IconForeground="{StaticResource WarnForegroundBrush}" />
@@ -42,7 +42,7 @@
         </Grid>
 
         <TextBlock Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource CaptionText}"
-                   Text="Étape 1 : coquille de l'application et base de données. Aucun disque n'est lu pour l'instant ; les cartes ci-dessus seront renseignées aux étapes 2 et 3A." />
+                   Text="Un inventaire lit le matériel, Windows et les volumes fixes de cet ordinateur. Aucun fichier n'est encore parcouru : le compteur de fichiers restera à zéro jusqu'à l'étape 3A." />
 
         <!-- Liste des inventaires -->
         <Border Grid.Row="2" Margin="0,16,0,0" Style="{StaticResource CardBorder}">

@@ -15,10 +15,10 @@ historique et comparaison d'inventaires.
 mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits administrateur.
 
 > Ce dépôt contient le **dossier de décision** et le **début du développement**.
-> Le code correspond à l'**étape 1** du plan (coquille de l'application et base de
-> données), **validée sur Windows 10 le 17/11** : compilation sans erreur ni
-> avertissement, sept rubriques navigables, historique persistant. Détail de la recette :
-> [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md).
+> **Étape 1** (coquille et base de données) : **validée sur Windows 10 le 17/11** —
+> compilation sans erreur ni avertissement, sept rubriques navigables, historique persistant.
+> **Étape 2** (matériel, Windows, volumes) : écrite et poussée le 17/11, recette à faire.
+> Détail et guide de recette : [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md).
 > Aucun dépôt étudié n'a été modifié.
 
 ---
@@ -41,7 +41,7 @@ mécanique · 1440 × 900 · hors ligne · sans abonnement · sans droits admini
 | [`docs/11-plan-de-developpement.md`](docs/11-plan-de-developpement.md) | Cinq étapes (dont 3A scan / 3B rubrique Fichiers), tests, critères |
 | [`docs/12-risques-et-limites.md`](docs/12-risques-et-limites.md) | Risques, limites, points à vérifier |
 | [`docs/13-verifications.md`](docs/13-verifications.md) | **Vérifications de la v2.1** : cinq points, constats, corrections |
-| [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md) | **Journal du développement** : étape 1 (validée le 17/11), décisions, recette |
+| [`docs/14-journal-de-developpement.md`](docs/14-journal-de-developpement.md) | **Journal du développement** : étapes 1 (validée) et 2 (livrée), décisions, guides de recette |
 
 Maquettes : [`assets/maquette-fichiers.png`](assets/maquette-fichiers.png) (la rubrique centrale) et [`assets/maquette-atlas-pc.png`](assets/maquette-atlas-pc.png) (tableau de bord)
 
@@ -91,4 +91,6 @@ ouvrir ATLAS-PC.sln  →  Générer la solution  →  F5
 ```
 
 La base est créée au premier lancement dans `%LOCALAPPDATA%\ATLAS PC\atlas.db`.
-Aucune donnée n'est écrite ailleurs ; aucun disque n'est lu à ce stade.
+Aucune donnée n'est écrite ailleurs. Un inventaire lit le matériel et les volumes fixes
+via WMI, en lecture seule et sans droits administrateur ; aucun disque n'est parcouru
+avant l'étape 3A.

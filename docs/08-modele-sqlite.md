@@ -109,7 +109,9 @@ CREATE TABLE computer (
     inventory_id  INTEGER PRIMARY KEY REFERENCES inventory(id) ON DELETE CASCADE,
     manufacturer  TEXT, model TEXT,
     cpu_name      TEXT, cpu_cores INTEGER,
-    ram_bytes     INTEGER,
+    cpu_threads   INTEGER,                      -- ajouté en v2 : processeurs logiques
+    ram_bytes     INTEGER,                      -- mémoire installée
+    ram_usable_bytes INTEGER,                   -- ajouté en v2 : mémoire utilisable
     gpu_name      TEXT,
     bios_vendor   TEXT, bios_version TEXT,
     os_name       TEXT, os_version TEXT, os_build TEXT,
@@ -197,6 +199,16 @@ CREATE TABLE scan_issue (
 );
 ```
 
+> **Version 2 du schéma (17/11/2026).** Deux colonnes ont été ajoutées à `computer` :
+> `cpu_threads` (les threads sont affichés à part des cœurs physiques) et
+> `ram_usable_bytes` (la mémoire utilisable n'est pas la mémoire installée). C'est la
+> **seule** entorse à la règle « aucune migration » : `CREATE TABLE IF NOT EXISTS` ne
+> touche pas une table existante, donc `Database.EnsureColumn` vérifie `PRAGMA table_info`
+> et exécute un `ALTER TABLE ... ADD COLUMN` si la colonne manque. Opération idempotente,
+> sur deux colonnes nommées dans le code — pas de moteur de migration. `PRAGMA user_version`
+> passe de 1 à 2 ; une base créée en v1 reste donc lisible sans être recréée.
+
+
 ### 3.1 Le statut d'un disque, et sa conséquence exacte
 
 | Statut | Quand | Conséquence sur la comparaison |
@@ -206,6 +218,11 @@ CREATE TABLE scan_issue (
 | `partial` | parcours terminé, **mais** au moins une zone en erreur | suppressions décidables dossier par dossier (la garde `scan_issue` s'applique) |
 | `cancelled` | parcours **interrompu** par l'utilisateur | **aucune suppression confirmée** sur ce disque |
 | `inaccessible` | racine refusée ou absente | **aucune suppression confirmée** sur ce disque |
+
+**Cas particulier de l'étape 2.** Un inventaire qui ne contient que le matériel est clôturé
+en `partial` : c'est le seul statut qui dise à la fois « quelque chose a été collecté » et
+« ce n'est pas complet ». Il n'a aucune ligne `scan_root`, donc aucune suppression ne peut
+en découler ; sa note dit noir sur blanc que les fichiers n'ont pas été parcourus.
 
 > **Correction du 17/11 (mise en œuvre de l'étape 1).** Le statut `running` a été ajouté
 > aux deux `CHECK` : une ligne doit exister pendant le parcours, et le schéma n'autorisait

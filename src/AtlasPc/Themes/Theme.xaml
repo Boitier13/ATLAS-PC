@@ -67,6 +67,9 @@
     <PathGeometry x:Key="IconMemory" Figures="M2,5 H14 V11 H2 Z M5,11 V13 M8,11 V13 M11,11 V13" />
     <PathGeometry x:Key="IconDisk" Figures="M2,4 H14 V12 H2 Z M11,5.5 V10.5 M4.5,8 H8.5" />
     <PathGeometry x:Key="IconFile" Figures="M4,1.5 H9.5 L12.5,4.5 V14.5 H4 Z M9.5,1.5 V4.5 H12.5" />
+    <PathGeometry x:Key="IconGpu" Figures="M1.5,2.5 H14.5 V10.5 H1.5 Z M6,10.5 V13 M10,10.5 V13 M5,13 H11" />
+    <PathGeometry x:Key="IconWindows" Figures="M2,2.5 H7.5 V8 H2 Z M9,2.5 H14.5 V8 H9 Z M2,9.5 H7.5 V15 H2 Z M9,9.5 H14.5 V15 H9 Z" />
+    <PathGeometry x:Key="IconBios" Figures="M3,3 H13 V13 H3 Z M6,6 H10 V10 H6 Z M6.5,1.5 V3 M9.5,1.5 V3 M6.5,13 V14.5 M9.5,13 V14.5 M1.5,6.5 H3 M1.5,9.5 H3 M13,6.5 H14.5 M13,9.5 H14.5" />
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
@@ -312,6 +315,39 @@
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource GridHeaderStyle}" />
         <Setter Property="CellStyle" Value="{StaticResource GridCellStyle}" />
         <Setter Property="RowStyle" Value="{StaticResource GridRowStyle}" />
+    </Style>
+
+    <!-- ============ Barre de remplissage d'un volume ==================== -->
+    <!-- Le niveau (low / medium / high) vient du modèle ; la couleur en découle. -->
+    <Style x:Key="VolumeBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="Minimum" Value="0" />
+        <Setter Property="Maximum" Value="100" />
+        <Setter Property="Background" Value="{StaticResource Accent100Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Accent500Brush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="3" ClipToBounds="True">
+                        <Grid>
+                            <Rectangle x:Name="PART_Track" />
+                            <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left"
+                                       Fill="{TemplateBinding Foreground}" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding PercentLevel}" Value="medium">
+                <Setter Property="Foreground" Value="{StaticResource WarnForegroundBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding PercentLevel}" Value="high">
+                <Setter Property="Foreground" Value="{StaticResource DangerForegroundBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ================= Barre latérale ================================ -->

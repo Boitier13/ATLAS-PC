@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using AtlasPc.Collecting;
 using AtlasPc.Data;
 using AtlasPc.Models;
 using AtlasPc.Shell;
@@ -21,10 +22,15 @@ namespace AtlasPc.ViewModels
 
         private readonly InventoryStore _store;
         private readonly Database _database;
+        private readonly ComputerViewModel _computer;
+
+        private ComputerInfo _latestComputer;
+        private List<VolumeInfo> _latestVolumes;
 
         private NavigationItem _selectedSection;
         private Inventory _latestInventory;
         private bool _isScanning;
+        private bool _isProgressIndeterminate;
         private double _progressPercent;
         private string _progressText;
 
@@ -36,6 +42,7 @@ namespace AtlasPc.ViewModels
             _database = database;
 
             Inventories = new ObservableCollection<Inventory>();
+            _computer = new ComputerViewModel();
             Sections = BuildSections();
 
             StartInventoryCommand = new RelayCommand(StartInventory, () => !IsScanning);
@@ -129,6 +136,80 @@ namespace AtlasPc.ViewModels
             private set { Set(ref _progressText, value); }
         }
 
+        /// <summary>
+        /// Vrai pendant la collecte matérielle : la durée d'une requête WMI n'est pas
+        /// connue à l'avance, la barre ne peut donc pas afficher un pourcentage honnête.
+        /// </summary>
+        public bool IsProgressIndeterminate
+        {
+            get { return _isProgressIndeterminate; }
+            private set
+            {
+                if (Set(ref _isProgressIndeterminate, value))
+                    OnPropertyChanged("IsProgressDeterminate");
+            }
+        }
+
+        public bool IsProgressDeterminate
+        {
+            get { return !_isProgressIndeterminate; }
+        }
+
+        // --- Résumé matériel (tableau de bord) --------------------------------
+
+        public string CpuText
+        {
+            get { return _latestComputer == null ? "—" : _latestComputer.CpuValue; }
+        }
+
+        public string CpuHint
+        {
+            get { return _latestComputer == null ? "aucun inventaire" : _latestComputer.CpuHint; }
+        }
+
+        public string RamText
+        {
+            get { return _latestComputer == null ? "—" : _latestComputer.RamValue; }
+        }
+
+        public string RamHint
+        {
+            get { return _latestComputer == null ? "aucun inventaire" : _latestComputer.RamHint; }
+        }
+
+        public string StorageText
+        {
+            get
+            {
+                if (_latestVolumes == null || _latestVolumes.Count == 0) return "—";
+
+                long total = 0;
+                foreach (var volume in _latestVolumes)
+                {
+                    if (volume.TotalBytes.HasValue && volume.TotalBytes.Value > 0) total += volume.TotalBytes.Value;
+                }
+
+                return total > 0 ? Inventory.FormatBytes(total) : "—";
+            }
+        }
+
+        public string StorageHint
+        {
+            get
+            {
+                if (_latestVolumes == null || _latestVolumes.Count == 0) return "aucun volume lu";
+
+                long free = 0;
+                foreach (var volume in _latestVolumes)
+                {
+                    if (volume.FreeBytes.HasValue && volume.FreeBytes.Value > 0) free += volume.FreeBytes.Value;
+                }
+
+                var count = _latestVolumes.Count == 1 ? "1 volume" : _latestVolumes.Count + " volumes";
+                return free > 0 ? count + " · " + Inventory.FormatBytes(free) + " libres" : count;
+            }
+        }
+
         // --- Commandes --------------------------------------------------------
 
         public ICommand StartInventoryCommand { get; private set; }
@@ -138,9 +219,12 @@ namespace AtlasPc.ViewModels
         private CancellationTokenSource _cancellation;
 
         /// <summary>
-        /// Étape 1 : simulation. Aucun disque n'est lu ; la ligne est créée puis clôturée
-        /// en <c>cancelled</c> avec une note explicite, pour ne jamais laisser croire à un
-        /// inventaire réel. Remplacé à l'étape 3A par le vrai scan.
+        /// Étape 2 : collecte réellement le matériel et Windows, puis clôt l'inventaire en
+        /// <c>partial</c> — les fichiers ne sont pas inventoriés (étape 3A). Aucun disque
+        /// n'est parcouru ici, et la note de l'inventaire le dit.
+        ///
+        /// La collecte WMI tourne hors du thread d'interface ; garde-fou global de 35 s,
+        /// appels eux-mêmes bornés à 10 s et budget interne de 30 s.
         /// </summary>
         private async void StartInventory()
         {
@@ -148,42 +232,60 @@ namespace AtlasPc.ViewModels
 
             _cancellation = new CancellationTokenSource();
             IsScanning = true;
+            IsProgressIndeterminate = true;
             ProgressPercent = 0;
-            ProgressText = "Préparation (simulation de l'étape 1)…";
+            ProgressText = "Lecture du matériel et de Windows…";
 
             long inventoryId = 0;
             try
             {
                 inventoryId = _store.Create(0, AppVersion);
-                var steps = SimulationSteps();
 
-                for (var i = 0; i < steps.Count; i++)
-                {
-                    await Task.Delay(220, _cancellation.Token);
-                    ProgressPercent = (i + 1) * 100.0 / steps.Count;
-                    ProgressText = steps[i];
-                }
+                var collectTask = Task.Run(() => ComputerCollector.Collect());
+                var guard = Task.Delay(TimeSpan.FromSeconds(35));
+                var finished = await Task.WhenAny(collectTask, guard);
 
-                _store.Close(inventoryId, InventoryStatus.Cancelled, 0, 0, 0, 0,
-                    "Simulation de l'étape 1 : aucun disque n'a été parcouru.");
-            }
-            catch (OperationCanceledException)
-            {
-                if (inventoryId != 0)
+                if (_cancellation.IsCancellationRequested)
                 {
+                    Forget(collectTask);
                     _store.Close(inventoryId, InventoryStatus.Cancelled, 0, 0, 0, 0,
-                        "Annulé par l'utilisateur (simulation de l'étape 1).");
+                        "Collecte annulée par l'utilisateur. Aucun fichier n'a été inventorié (étape 3A).");
+                    return;
                 }
+
+                if (finished != collectTask)
+                {
+                    // Le service WMI ne répond pas : on cesse d'attendre et on le dit.
+                    Forget(collectTask);
+                    _store.Close(inventoryId, InventoryStatus.Partial, 0, 0, 0, 1,
+                        "Collecte abandonnée après 35 s : WMI n'a pas répondu. " +
+                        "Aucun fichier n'a été inventorié (étape 3A).");
+                    return;
+                }
+
+                var collected = await collectTask;
+
+                ProgressText = "Enregistrement du matériel…";
+                _store.SaveHardware(inventoryId, collected.Computer, collected.Volumes);
+                _store.Close(inventoryId, InventoryStatus.Partial, 0, 0, 0,
+                    collected.Issues.Count, BuildNote(collected));
             }
             catch (Exception ex)
             {
                 if (inventoryId != 0)
                 {
-                    _store.Close(inventoryId, InventoryStatus.Cancelled, 0, 0, 0, 0,
-                        "Échec de la simulation : " + ex.Message);
+                    try
+                    {
+                        _store.Close(inventoryId, InventoryStatus.Partial, 0, 0, 0, 1,
+                            "Collecte interrompue par une erreur : " + ex.Message);
+                    }
+                    catch (Exception)
+                    {
+                        // La clôture en échec ne doit pas masquer l'erreur d'origine.
+                    }
                 }
 
-                Dialogs.Error("Inventaire", "L'inventaire simulé n'a pas pu se terminer.\n\n" + ex.Message);
+                Dialogs.Error("Inventaire", "La collecte du matériel n'a pas pu se terminer.\n\n" + ex.Message);
             }
             finally
             {
@@ -193,11 +295,40 @@ namespace AtlasPc.ViewModels
                     _cancellation = null;
                 }
 
+                IsProgressIndeterminate = false;
                 ProgressPercent = 0;
                 ProgressText = null;
                 IsScanning = false;
                 LoadInventories();
             }
+        }
+
+        /// <summary>Observe une tâche abandonnée pour que son exception ne remonte pas.</summary>
+        private static void Forget(Task task)
+        {
+            task.ContinueWith(t => GC.KeepAlive(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
+        }
+
+        /// <summary>
+        /// Note enregistrée dans l'inventaire : ce qui a été lu, ce qui a échoué, et ce qui
+        /// n'a pas été fait. Elle reste visible après redémarrage.
+        /// </summary>
+        private static string BuildNote(CollectResult result)
+        {
+            var text = "Matériel et Windows : " + result.QueriesRun + "/" + result.QueriesTotal + " appels WMI";
+
+            if (result.Issues.Count > 0)
+            {
+                text += ". Incidents : " + string.Join(" ; ", result.Issues.ToArray());
+            }
+            else
+            {
+                text += ", sans incident";
+            }
+
+            text += ". Fichiers non inventoriés : le parcours des disques arrive à l'étape 3A.";
+
+            return text.Length > 900 ? text.Substring(0, 900) + "…" : text;
         }
 
         private void CancelScan()
@@ -236,7 +367,19 @@ namespace AtlasPc.ViewModels
                 foreach (var inventory in list) Inventories.Add(inventory);
 
                 LatestInventory = Inventories.Count > 0 ? Inventories[0] : null;
-                OnPropertyChanged("DatabaseSizeText");
+
+                _latestComputer = null;
+                _latestVolumes = null;
+
+                if (LatestInventory != null)
+                {
+                    _latestComputer = _store.GetComputer(LatestInventory.Id);
+                    _latestVolumes = _store.GetVolumes(LatestInventory.Id);
+                }
+
+                _computer.Refresh(LatestInventory, _latestComputer, _latestVolumes);
+
+                OnPropertyChanged(string.Empty);
             }
             catch (Exception ex)
             {
@@ -253,29 +396,12 @@ namespace AtlasPc.ViewModels
             }
         }
 
-        private static List<string> SimulationSteps()
-        {
-            return new List<string>
-            {
-                "Simulation — lecture du matériel (aucun accès disque)",
-                "Simulation — lecture du registre des logiciels",
-                "Simulation — détection des outils de développement",
-                "Simulation — parcours des fichiers",
-                "Simulation — écriture des lots",
-                "Simulation — clôture de l'inventaire",
-                "Simulation — aucun disque n'a été parcouru"
-            };
-        }
-
         private ObservableCollection<NavigationItem> BuildSections()
         {
             return new ObservableCollection<NavigationItem>
             {
                 new NavigationItem("Tableau de bord", "IconDashboard", this),
-                new NavigationItem("Ordinateur", "IconComputer",
-                    new PlaceholderViewModel("Ordinateur", "Étape 2",
-                        "Fabricant, modèle, processeur, mémoire, carte graphique, BIOS, Windows, " +
-                        "disques et volumes seront collectés ici.")),
+                new NavigationItem("Ordinateur", "IconComputer", _computer),
                 new NavigationItem("Fichiers", "IconFolder",
                     new PlaceholderViewModel("Fichiers", "Étapes 3A et 3B",
                         "L'explorateur et la recherche par nom ouvriront ici : arbre des dossiers, " +

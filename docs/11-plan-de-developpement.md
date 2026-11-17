@@ -69,14 +69,21 @@ jalon est gelé au commit `2c15ca3`.
 
 ---
 
-## 3. Étape 2 — Inventaire matériel et Windows (3 j)
+## 3. Étape 2 — Inventaire matériel et Windows (3 j) — **livrée le 17/11, recette en cours**
 
 | Livrable | Détail |
 |---|---|
-| `ComputerCollector` | 7 requêtes WMI + registre, un `try/catch` par requête, délai 10 s |
-| Tables `computer`, `volume` | écriture d'un inventaire matériel |
-| Vue **Ordinateur** | 6 fiches + tableau disques/volumes avec barre de remplissage colorée |
+| `ComputerCollector` | **9 appels WMI** (7 classes + 2 associations) + registre, un `try/catch` par appel, 10 s par appel, budget 30 s |
+| Tables `computer`, `volume` | écriture d'un inventaire matériel, transaction unique |
+| Mémoire | **installée** et **utilisable** stockées et affichées séparément |
+| Threads | `cpu_threads` affiché à part des cœurs physiques |
+| Vue **Ordinateur** | 6 cartes + tableau disques/volumes avec barre de remplissage colorée + note de collecte |
 | Valeurs absentes | `—` + info-bulle, jamais `0` |
+
+**Statut d'un inventaire de l'étape 2.** Matériel lu, fichiers non parcourus : l'inventaire
+est clôturé en **`partial`**, avec une note qui donne le nombre d'appels WMI réussis, les
+incidents et la phrase « Fichiers non inventoriés ». Aucune ligne de l'historique ne peut
+être lue comme un inventaire complet.
 
 **Critères de sortie** : collecte **< 15 s** ; aucune exception non gérée si WMI est
 indisponible ; exécution en utilisateur standard ; 100 % des champs affichés ont une

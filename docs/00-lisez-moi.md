@@ -25,12 +25,16 @@ mécanique · 1440 × 900 · hors ligne · gratuit · sans droits administrateur
    développement supplémentaire (3A/3B) et une interface plus riche pour cette seule
    rubrique. Détail au § 5.9.
 
-Le **dossier** est complet et validé. Le **développement a commencé** : l'**étape 1**
-(coquille de l'application et base de données) est écrite dans `src/AtlasPc/` et
-**validée sur Windows 10 le 17/11** — compilation sans erreur ni avertissement, sept
-rubriques navigables, inventaire simulé et historique persistant. Le suivi, les décisions
-prises pendant l'écriture et le détail de la recette sont dans
-[`14-journal-de-developpement.md`](14-journal-de-developpement.md). L'étape 2 n'est pas
+Le **dossier** est complet et validé. Le **développement a commencé** :
+
+- **étape 1** (coquille et base de données) : **validée sur Windows 10 le 17/11** —
+  compilation sans erreur ni avertissement, sept rubriques navigables, historique
+  persistant ;
+- **étape 2** (matériel, Windows et volumes, 9 appels WMI en lecture seule) : écrite et
+  poussée le 17/11, recette à faire.
+
+Le suivi, les décisions et les guides de recette sont dans
+[`14-journal-de-developpement.md`](14-journal-de-developpement.md). L'étape 3A n'est pas
 commencée. Aucun dépôt étudié n'a été modifié.
 
 ---

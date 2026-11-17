@@ -25,6 +25,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- WMI : lecture seule du matériel (étape 2). -->
+    <Reference Include="System.Management" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Data\Schema.sql" />
   </ItemGroup>
 

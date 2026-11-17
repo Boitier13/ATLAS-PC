@@ -293,12 +293,34 @@ l'inventaire, pas l'état présent du disque.
 
 | Gauche | Droite |
 |---|---|
-| Identité (fabricant, modèle) | Windows (nom, version, build, architecture, date d'installation) |
-| Processeur (nom, cœurs) | Mémoire (RAM totale) |
-| Carte graphique (nom) | BIOS (éditeur, version) |
+| **Identité** — modèle en grand, fabricant en dessous | **Windows** — nom, puis version · build · architecture |
+| **Processeur** — nom, puis cœurs et threads séparés | **Mémoire installée** — capacité, puis « dont X utilisables » |
+| **Carte graphique** — noms concaténés, puis nombre de cartes | **BIOS** — version, puis éditeur |
+
+**Deux règles d'affichage de cette vue.**
+
+1. **Mémoire : deux notions, deux textes.** La carte s'appelle « Mémoire installée » et
+   affiche la capacité physique ; la ligne du dessous donne la mémoire **utilisable**.
+   Si celle-ci n'a pas été lue, on écrit « mémoire utilisable non lue » — la mémoire
+   installée ne la remplace jamais.
+2. **Date d'installation : une origine, écrite.** Sous les cartes, une ligne de détail
+   donne la date et son origine (registre = installation d'origine ; WMI = dernière
+   installation ou mise à niveau). Les deux dates ne sont jamais présentées comme
+   équivalentes.
 
 Puis un tableau **Disques et volumes** : disque · volume · système de fichiers ·
-capacité · libre · % utilisé (barre colorée). Valeur absente : `—` + info-bulle.
+capacité · libre · occupation (barre colorée + pourcentage). Valeur absente : `—` +
+info-bulle.
+
+Sous le tableau, deux mentions permanentes :
+
+> Volumes fixes uniquement (DriveType 3) : les disques amovibles, les lecteurs réseau,
+> les CD-ROM et les partitions sans lettre ne sont pas inventoriés.
+
+Et, tant que les fichiers ne sont pas parcourus, un bandeau ambre **« Collecte
+partielle — à lire »** reprenant la note de l'inventaire : nombre d'appels WMI réussis,
+incidents éventuels, et la phrase « Fichiers non inventoriés : le parcours des disques
+arrive à l'étape 3A ».
 
 ### 5.3 Logiciels
 

@@ -15,6 +15,10 @@
                 <views:DashboardView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:ComputerViewModel}">
+                <views:ComputerView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
                 <views:PlaceholderView />
             </DataTemplate>

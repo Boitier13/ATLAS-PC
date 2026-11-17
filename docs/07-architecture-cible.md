@@ -376,23 +376,47 @@ renommage, déplacement ou suppression. Ce sont des exclusions **volontaires** d
 
 ### 7.1 Ordinateur (WMI, une classe)
 
-| Donnée | Source |
-|---|---|
-| fabricant, modèle | `Win32_ComputerSystem` |
-| CPU (nom, cœurs) | `Win32_Processor` |
-| RAM totale | `Win32_ComputerSystem.TotalPhysicalMemory` |
-| GPU | `Win32_VideoController.Name` |
-| BIOS (éditeur, version) | `Win32_BIOS` |
-| Windows (nom, version, build, architecture) | `Win32_OperatingSystem` + registre `CurrentVersion` |
-| volumes | `Win32_LogicalDisk` (type 3) |
-| disques physiques (modèle, taille), rattachés à chaque volume | `Win32_DiskDrive` + `Win32_DiskDriveToDiskPartition` / `Win32_LogicalDiskToPartition` |
+**Neuf appels WMI, pas sept** : sept classes de données plus deux associations. La
+confusion venait du dossier précédent, qui parlait de « sept requêtes » en comptant les
+deux associations comme une seule. Le décompte exact, celui du code :
 
-Une seule classe, sept requêtes, un `try/catch` par requête, un délai de 10 s par
-requête (`EnumerationOptions.Timeout`). Toute valeur absente est `NULL` et affichée
-`—` : jamais `0`, jamais une valeur inventée.
+| # | Classe WMI | Donnée | Colonnes |
+|---|---|---|---|
+| 1 | `Win32_ComputerSystem` | fabricant, modèle, **mémoire installée** | `manufacturer`, `model`, `ram_bytes` |
+| 2 | `Win32_Processor` | nom, cœurs physiques, processeurs logiques | `cpu_name`, `cpu_cores`, `cpu_threads` |
+| 3 | `Win32_VideoController` | cartes graphiques (noms concaténés) | `gpu_name` |
+| 4 | `Win32_BIOS` | éditeur, version | `bios_vendor`, `bios_version` |
+| 5 | `Win32_OperatingSystem` | nom, version, build, architecture, **mémoire utilisable**, date | `os_*` |
+| 6 | `Win32_LogicalDisk` (`DriveType = 3`) | volumes fixes | `volume.drive`, `label`, `file_system`, `total_bytes`, `free_bytes` |
+| 7 | `Win32_DiskDrive` | disques physiques | `volume.disk_index`, `disk_model`, `disk_size_bytes` |
+| 8 | `Win32_DiskDriveToDiskPartition` | association disque → partition | — |
+| 9 | `Win32_LogicalDiskToPartition` | association partition → volume | — |
 
-**Hors périmètre** : barrettes mémoire détaillées, partitions, chipset, carte mère,
-Secure Boot, TPM, SMART, moniteurs, batterie, réseau.
+WMI ne relie pas directement un volume à son disque physique : les appels 8 et 9 servent
+uniquement à remplir les trois colonnes `disk_*`. S'ils échouent, ces colonnes restent
+`NULL` et la vue affiche `—` ; le volume est quand même listé.
+
+**Deux notions de mémoire, jamais confondues.** `ram_bytes` est la mémoire **installée**
+(`TotalPhysicalMemory`) ; `ram_usable_bytes` est la mémoire **utilisable** par le système
+(`TotalVisibleMemorySize`, en kilo-octets, à multiplier par 1024). La seconde est
+inférieure à la première (réserve matérielle, circuit graphique intégré). Si la mémoire
+utilisable n'est pas lue, l'interface écrit « non lue » — elle ne la remplace jamais par
+la mémoire installée.
+
+**Deux registres, deux dates qui ne sont pas équivalentes.** `Win32_OperatingSystem.InstallDate`
+(date CIM, convertie en UTC) donne la date de l'**image Windows courante** : celle de la
+dernière installation ou mise à niveau. `HKLM\...\CurrentVersion\InstallDate` (DWORD,
+secondes Unix) donne l'installation d'**origine**. ATLAS PC retient la seconde et ne se
+rabat sur la première que si le registre ne contient rien exploitable — auquel cas la
+note de l'inventaire le dit, et la vue précise l'origine de la date. Les deux valeurs ne
+sont jamais présentées comme identiques.
+
+Un `try/catch` par appel, un délai de 10 s par appel (`EnumerationOptions.Timeout`), un
+budget interne de 30 s, et un garde-fou de 35 s côté interface. Toute valeur absente est
+`NULL` et affichée `—` : jamais `0`, jamais une valeur inventée.
+
+**Hors périmètre** : barrettes mémoire détaillées, partitions sans lettre, chipset, carte
+mère, Secure Boot, TPM, SMART, moniteurs, batterie, réseau, BitLocker.
 
 ### 7.2 Logiciels
 

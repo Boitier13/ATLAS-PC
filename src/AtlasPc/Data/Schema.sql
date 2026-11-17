@@ -1,7 +1,8 @@
--- ATLAS PC — schéma SQLite v1
+-- ATLAS PC — schéma SQLite v2 (17/11 : cpu_threads et ram_usable_bytes)
 -- Créé en une fois : aucune migration prévue (voir docs/08-modele-sqlite.md).
 -- Toutes les instructions sont idempotentes : relancer ce script sur une base
--- existante ne détruit rien et ajoute ce qui manque.
+-- existante ne détruit rien et ajoute ce qui manque. Les deux colonnes ajoutées
+-- en v2 sont posées par Database.EnsureColumn sur une base créée en v1.
 
 -- 1. Inventaires ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS inventory (
@@ -44,8 +45,10 @@ CREATE TABLE IF NOT EXISTS computer (
     manufacturer  TEXT,
     model         TEXT,
     cpu_name      TEXT,
-    cpu_cores     INTEGER,
-    ram_bytes     INTEGER,
+    cpu_cores     INTEGER,              -- cœurs physiques
+    cpu_threads   INTEGER,              -- processeurs logiques (affiché à part)
+    ram_bytes     INTEGER,              -- mémoire installée
+    ram_usable_bytes INTEGER,           -- mémoire utilisable : notion distincte
     gpu_name      TEXT,
     bios_vendor   TEXT,
     bios_version  TEXT,

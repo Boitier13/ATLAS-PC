@@ -133,6 +133,12 @@ AtlasPc/
 Total ≈ 58 fichiers, dont 8 XAML et un fichier SQL — hors vue de remplacement
 temporaire (`PlaceholderView`).
 
+**État au 17/11/2026** (étape 2 livrée) : existent `Models/ComputerInfo`,
+`Models/VolumeInfo`, `Collecting/ComputerCollector`, `ViewModels/ComputerViewModel`,
+`Views/ComputerView` et le style `VolumeBar` du thème. Le reste de l'arborescence est à
+écrire aux étapes suivantes. `Controls/BarRow` est reporté à l'étape 3B : le tableau des
+volumes porte son libellé dans une colonne voisine, une barre seule suffit.
+
 **Le schéma complet est créé dès l'étape 1.** Les dix tables existent avant leurs
 collecteurs : cela évite toute migration, que le dossier refuse explicitement. Une table
 vide ne coûte rien et le script est idempotent. C'est l'ordre de grandeur d'un

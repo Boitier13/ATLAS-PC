@@ -12,6 +12,7 @@ machine cible**, et ce qu'il faut faire à la main.
 > **Retour du PC (17/11)** : compilation **0 erreur, 0 avertissement** (MSBuild 17.14.60).
 > Un défaut de liaison empêchait le lancement, corrigé au § 1.5. La recette sur
 > Windows 10 a ensuite été **entièrement réussie** : l'étape 1 est **validée** (§ 1.6).
+> L'**étape 2** est écrite et poussée le 17/11 (§ 2) : compilation et recette à faire.
 
 ---
 
@@ -201,3 +202,121 @@ chronomètre du double-clic à la fenêtre affichée.
 
 C'est conforme au critère de l'étape 1 : *une application qui démarre, se navigue, et
 parle à sa base*.
+
+---
+
+## Étape 2 — Inventaire matériel et Windows — **livrée le 17/11, recette à faire**
+
+### 2.1 Ce qui a été écrit
+
+| Élément | Fichier(s) |
+|---|---|
+| Collecte | `Collecting/ComputerCollector.cs` : **9 appels WMI** (7 classes + 2 associations) et la lecture du registre |
+| Modèles | `Models/ComputerInfo.cs`, `Models/VolumeInfo.cs` (taux d'occupation, niveaux de couleur) |
+| Écriture | `Data/InventoryStore.cs` : `SaveHardware`, `GetComputer`, `GetVolumes` |
+| Schéma | `Data/Schema.sql` v2 (+ `cpu_threads`, + `ram_usable_bytes`) et `Database.EnsureColumn` |
+| Vue | `Views/ComputerView.xaml(.cs)` : 6 cartes, tableau des volumes, note de collecte, état vide |
+| ViewModel | `ViewModels/ComputerViewModel.cs` |
+| Thème | `Themes/Theme.xaml` : 3 icônes (`IconGpu`, `IconWindows`, `IconBios`) et le style `VolumeBar` |
+| Coquille | `ShellViewModel` : collecte réelle, résumé du tableau de bord, barre indéterminée ; `ShellWindow` (barre) ; `DashboardView` (3 cartes renseignées) ; `App.xaml` (gabarit de vue) |
+| Projet | `<Reference Include="System.Management" />` |
+
+Six fichiers créés, neuf modifiés, deux colonnes ajoutées à `computer` — aucune autre
+table, aucune autre colonne.
+
+### 2.2 Les dix arbitrages, tels qu'appliqués
+
+| # | Décision retenue | Mise en œuvre |
+|---|---|---|
+| C1 | le bouton « Lancer un inventaire » collecte **réellement** | plus aucune étape simulée : `SimulationSteps` est supprimée |
+| C2 | `Task.Run` | la collecte ne bloque pas le thread d'interface |
+| C3 | cœurs physiques, threads à part | deux colonnes, deux textes : « 6 cœurs · 12 threads » |
+| C4 | mémoire installée seule dans la valeur ; utilisable à part | si elle manque : « mémoire utilisable non lue », jamais de substitution |
+| C5 | noms multiples concaténés | `Intel UHD 630 · NVIDIA GTX 1650`, avec le nombre de cartes |
+| C6 | volumes fixes uniquement | filtre `DriveType = 3` **dans la requête**, exclusions écrites sous le tableau |
+| C7 | nom de Windows corrigé par le registre | build ≥ 22000 → « Windows 11 » même si `ProductName` dit « 10 » |
+| C8 | `InventoryStore` conservé | 3 méthodes ajoutées, `Data` reste à 9 fichiers |
+| C9 | incidents écrits dans `inventory.note` | note construite par `BuildNote`, visible après redémarrage |
+| C10 | budget de 30 s **garanti côté interface** | 10 s par appel + budget interne 30 s + `Task.WhenAny` à 35 s |
+
+### 2.3 Les corrections demandées, et ce qu'elles ont changé
+
+**1. Collecte réelle, statut cohérent.** L'inventaire est créé en `running`, le matériel
+est écrit, puis la ligne est clôturée en **`partial`** : le matériel est lu, les fichiers
+ne le sont pas. La note le dit mot pour mot (« Fichiers non inventoriés : le parcours des
+disques arrive à l'étape 3A »), la vue Ordinateur affiche un bandeau ambre « Collecte
+partielle — à lire », et le tableau de bord garde « Fichiers — » avec l'explication. Le
+badge d'état affiche donc « Partiel », jamais « Complet ».
+
+**2. Mémoire installée ≠ mémoire utilisable.** Deux colonnes (`ram_bytes`,
+`ram_usable_bytes`), deux provenances (`TotalPhysicalMemory` en octets,
+`TotalVisibleMemorySize` en kilo-octets), deux textes. Aucun repli de l'une sur l'autre.
+
+**3. Décompte des requêtes WMI clarifié.** Le plan annonçait sept requêtes ; il y en a
+**neuf** — sept classes plus les deux associations qui rattachent un volume à son disque
+physique. Le code, la note d'inventaire (`9/9 appels WMI`), `docs/07` § 7.1 et `docs/11`
+§ 3 emploient maintenant le même décompte.
+
+**4. Dates d'installation.** `Win32_OperatingSystem.InstallDate` (date CIM, convertie
+depuis l'heure locale vers UTC) désigne l'**image Windows courante** : dernière
+installation ou mise à niveau. `CurrentVersion\InstallDate` (DWORD, secondes Unix)
+désigne l'installation d'**origine**. ATLAS PC retient le registre, ne se rabat sur WMI
+qu'en dernier recours, et l'écrit alors dans la note. La vue précise l'origine de la date
+au lieu de présenter les deux comme équivalentes.
+
+### 2.4 Ce qui a été vérifié ici (Linux)
+
+| Vérification | Résultat |
+|---|---|
+| `Schema.sql` v2 exécuté sur SQLite | 10 tables, colonnes `cpu_threads` et `ram_usable_bytes` présentes |
+| **Chemin de mise à niveau v1 → v2** | base sans les deux colonnes, `ALTER TABLE` appliqué, insertion complète ensuite : **une base créée à l'étape 1 n'a pas besoin d'être recréée** |
+| Instructions SQL du matériel | `INSERT` computer/volume, `SELECT` de `GetComputer`/`GetVolumes`, `NULL` tolérés : validés |
+| Taux d'occupation | 499 000 000 000 / 210 000 000 000 → **57,9 %**, dans la classe « low » |
+| XAML | 7 fichiers bien formés ; 74 clés de ressources, **aucune référence manquante** |
+| Gabarits | les 3 `DataTemplate` pointent vers des classes existantes |
+| C# | 20 fichiers, accolades équilibrées, aucun élément postérieur à C# 7.3 |
+| Liaisons | 3 cibles à mode `TwoWay` par défaut, **toutes en mode explicite** : `ProgressBar.Value` (`ProgressPercent`) et `PercentValue` en `OneWay`, `ListBox.SelectedItem` en `TwoWay` |
+
+**Ce qui n'a pas pu être vérifié ici** : compilation, appels WMI réels, rendu, durée de
+collecte. Aucun Windows dans cet environnement.
+
+### 2.5 À faire sur le PC — guide de recette
+
+1. `Générer la solution`, puis `F5`.
+2. Cliquer **« Lancer un inventaire »** et chronométrer : du clic à l'affichage de la
+   fiche. Attendu **< 15 s** (1 à 3 s en pratique).
+3. Ouvrir la rubrique **Ordinateur** et comparer avec `msinfo32` :
+   - fabricant, modèle, BIOS (éditeur + version) ;
+   - processeur, cœurs et threads ;
+   - mémoire **installée** (et la mémoire utilisable, qui doit être plus petite) ;
+   - Windows : nom, version, build, architecture.
+4. Comparer la date d'installation avec `msinfo32` (« Date d'installation ») : elle doit
+   correspondre à l'installation d'origine, pas à la dernière mise à jour.
+5. Comparer le tableau **Disques et volumes** avec l'Explorateur : capacité, libre, %.
+   La barre doit être teal sous 70 %, ambre de 70 à 85 %, rouge au-delà.
+6. Revenir au **tableau de bord** : les cartes Processeur, Mémoire et Stockage sont
+   renseignées ; Fichiers reste à `—`.
+7. Vérifier l'historique : la ligne est en **« Partiel »**, 0 fichier, 0 octet, avec une
+   note qui commence par « Matériel et Windows : 9/9 appels WMI ».
+8. Fermer, rouvrir : la fiche Ordinateur est toujours là (elle vient de la base, aucune
+   collecte n'est refaite au démarrage — la durée d'ouverture ne doit pas changer).
+
+| # | À observer | Attendu | Si différent |
+|---|---|---|---|
+| 1 | Compilation | 0 erreur, 0 avertissement | m'envoyer fichier + ligne |
+| 2 | Collecte | < 15 s, barre indéterminée puis fiche | noter la durée réelle |
+| 3 | Valeurs | identiques à `msinfo32` / `dxdiag` | envoyer une capture |
+| 4 | Statut | « Partiel », note présente | copier la note |
+| 5 | Élévation | aucune fenêtre UAC | signaler |
+| 6 | Persistance | fiche identique après redémarrage | signaler |
+
+### 2.6 Ce qui n'est pas encore là, volontairement
+
+- aucune lecture de fichiers : `roots_count` reste à 0, `scan_root` est vide ;
+- les rubriques Fichiers, Logiciels, Outils, Développement et Évolution restent des vues
+  d'attente ;
+- pas de projet de tests : il arrive à l'étape 3A ;
+- `Controls/BarRow.xaml` n'a pas été créé : le tableau des volumes porte son libellé dans
+  une colonne voisine, une barre seule suffit. Ce contrôle servira au panneau
+  « Répartition par dossier » du tableau de bord (étape 3B), avec libellé + barre + valeur
+  sur une même ligne.
