@@ -282,7 +282,7 @@ plus par règle.
 | Durée estimée | 31-43 j | 19 j | 23 j | **23 j** |
 | Rubriques d'interface | 8 | 7 | 7 | **7**, dont Fichiers très au-dessus |
 | Fonctions de recherche | non prévues | simples | 11 | **11**, dont le nom exact servi par index |
-| Tests prévus (rubrique Fichiers) | 0 | 0 | 14 | **17** |
+| Tests prévus (rubrique Fichiers) | 0 | 0 | 14 | **11** (25 au total) |
 | Formats d'export | 3 | 0 | 0 | **0** |
 | Documents du dossier | 14 | 13 | 13 | **14** (dont ce rapport de vérification) |
 | Maquettes | 1 | 1 | 2 | **2** |

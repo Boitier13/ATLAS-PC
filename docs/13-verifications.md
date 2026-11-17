@@ -226,3 +226,29 @@ Ces cinq points sont **documentaires** ; les mesures appartiennent aux étapes 3
 | `docs/12-risques-et-limites.md` | R2 reformulé et abaissé, R9b, limite renommage, points 2 et 6b |
 | `docs/00-lisez-moi.md` | § 5.10, chiffres, version 2.2 |
 | `README.md` | 10 tables, version 2.2 |
+
+---
+
+## 8. Audit de cohérence de la v2.2 (17/11, après corrections)
+
+Sept contrôles automatiques et manuels sur les quatorze documents.
+
+| # | Contrôle | Résultat | Correction |
+|---|---|---|---|
+| 1 | Nombre de tables (07, 08, 10, 11, 12, 00, README) | conforme : **10** partout ; les mentions de 11 ou 20 sont historiques et datées | — |
+| 2 | Somme des durées du plan | 3 + 3 + 5 + 5 + 3 + 4 = **23 j**, conforme au total annoncé | — |
+| 3 | Statuts de racine (`complete`/`partial`/`cancelled`/`inaccessible`) dans 07, 08, 09, 12 | conforme | — |
+| 4 | Seuils (20 ms / 100 ms / 1,5 s ; 130/200/250 Mo ; 120 Mo de base) | conformes d'un document à l'autre | — |
+| 5 | Nombre de tests annoncé (7 § 4, 8 § 5, 00 § 6) | **incohérent** : 25 tests réels, annoncés 23 puis 17 | corrigé en **25 tests, dont 11 sur la rubrique Fichiers** |
+| 6 | Nombre de fichiers du modèle (10 § 2) | **incohérent** : 13 fichiers listés, 12 annoncés ; total 56 et non 55 | corrigé |
+| 7 | Références croisées « livrable N § x », liens, tableaux Markdown | toutes résolues ; deux `||` non échappés dans des tableaux (07 § 6.5, 08 § 5.5) | échappés en `\|\|` |
+
+Deux corrections mineures supplémentaires : la description de `ScanIssue.cs` mentionne
+désormais la **nature** de l'incident, et le risque R2 parle de **trois** tests dédiés au
+lieu de deux.
+
+**Conclusion de l'audit** : la v2.2 est cohérente. Les seuls écarts trouvés portaient sur
+des comptages de documentation, jamais sur une règle technique — ce qui est le bon signe :
+les corrections de fond (statut `cancelled`, garde à trois conditions, fusion de `disk`)
+sont passées sans laisser de contradiction derrière elles.
+

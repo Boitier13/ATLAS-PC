@@ -13,7 +13,7 @@
 | # | Risque | Prob. | Impact | Criticité | Parade | Vérifié à |
 |---|---|---|---|---|---|---|
 | R1 | **Un résultat présenté comme exhaustif alors que le scan n'a pas tout couvert** | 3 | 5 | **15** | statut par disque (`scan_root`) + `scan_issue` ; mention obligatoire à côté de chaque total ; 5 affichages prévus | 3A, 3B |
-| R2 | **Fausse annonce de suppression** — zone non analysée **ou disque interrompu** | 2 | 5 | **10** | une ligne `scan_issue` **par dossier** en échec ; statut `cancelled` distinct de `partial` et bloquant toute suppression ; deux tests dédiés | 3A, 5 |
+| R2 | **Fausse annonce de suppression** — zone non analysée **ou disque interrompu** | 2 | 5 | **10** | une ligne `scan_issue` **par dossier** en échec ; statut `cancelled` distinct de `partial` et bloquant toute suppression ; trois tests dédiés | 3A, 5 |
 | R3 | **Recherche par sous-chaîne trop lente** (aucun index ne sert un `LIKE '%x%'` comme intervalle) | 3 | 4 | **12** | parcours de `ix_file_name` (index compact) + pagination ; contingence FTS5 trigram **mesurée** | 3B |
 | R4 | **Windows 10 22H2 hors support** (14/10/2025 ; ESU jusqu'en 2028), .NET Framework lié à l'OS | 5 | 3 | **15** | `net48`, aucune dépendance externe, documentation | 1 |
 | R5 | **Zones inaccessibles sans administrateur** : l'inventaire est structurellement incomplet | 5 | 3 | **15** | compteur permanent, liste des zones, badge `Partiel`, garde sur les suppressions | 3A |

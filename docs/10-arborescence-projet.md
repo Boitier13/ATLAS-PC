@@ -52,7 +52,7 @@ AtlasPc/
 │  ├─ FileRow.cs               nom, dossier, extension, taille, date
 │  ├─ SearchQuery.cs           texte, filtres, tri, page
 │  ├─ FileCategory.cs          dictionnaire statique famille → extensions (+ couleur)
-│  ├─ ScanIssue.cs             dossier, code, message
+│  ├─ ScanIssue.cs             dossier, nature, code, message
 │  └─ ComparisonResult.cs      ajoutés, supprimés, non vérifiables, modifiés, delta
 │
 ├─ Data/
@@ -116,7 +116,7 @@ AtlasPc/
 
 | Dossier | Fichiers | Remarque |
 |---|---|---|
-| `Models` | 12 | classes de données, sans logique |
+| `Models` | 13 | classes de données, sans logique |
 | `Data` | 8 | tout le SQL est ici |
 | `Scanning` | 3 | aucune dépendance à WPF |
 | `Collecting` | 4 | une classe par domaine |
@@ -126,7 +126,7 @@ AtlasPc/
 | `Controls` | 6 | |
 | `Themes` | 1 | |
 
-Total ≈ 55 fichiers, dont 8 XAML et un fichier SQL. C'est l'ordre de grandeur d'un
+Total ≈ 56 fichiers, dont 8 XAML et un fichier SQL. C'est l'ordre de grandeur d'un
 petit logiciel de bureau, pas d'une plateforme.
 
 **Le prix de la fonction centrale** : environ 12 fichiers de plus que la version
@@ -185,7 +185,8 @@ tests de la rubrique Fichiers sont les plus nombreux : c'est la fonction central
 | `Software_FiltreSystemComponentEtParentKeyName` | filtrage du registre correct |
 | `ProjectDetector_IgnoreNodeModules` | pas de faux projets |
 
-Vingt-trois tests, dont dix-sept sur la rubrique Fichiers et la comparaison. Les tests utilisent des **dossiers
+Vingt-cinq tests : 11 sur la rubrique Fichiers, 7 sur le scan, 5 sur la comparaison, 2 sur les
+collecteurs. Les tests utilisent des **dossiers
 temporaires réels** et une base SQLite temporaire : aucune doublure, aucun faux système
 de fichiers.
 

@@ -121,7 +121,7 @@ identifiables.
 | **J4** | Filtres | extension, famille, taille, date, emplacement ; cumul, « tout effacer », pastilles actives, comptage |
 | **J5** | Actions et finitions | `ItemOpener` (ouverture vérifiée), `ClipboardHelper` (copier le chemin / le nom), menu contextuel, états vides, libellés, revue visuelle contre la maquette |
 
-**Tests** (les 14 de la rubrique Fichiers, livrable 7 § 4) : préfixe et sous-chaîne sur
+**Tests** (les 11 de la rubrique Fichiers, livrable 7 § 4) : préfixe et sous-chaîne sur
 le même jeu attendu, casse, pagination sans doublon ni trou, chaque filtre et leur
 combinaison, restriction au dossier courant, couverture signalée, ouverture refusée sur
 chemin disparu, absence d'API d'écriture dans `Shell`.
