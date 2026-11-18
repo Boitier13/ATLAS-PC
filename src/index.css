@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Segoe UI", "Segoe UI Variable", Tahoma, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  color-scheme: light;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html, body, #root { min-width: 320px; min-height: 100%; margin: 0; }
+  body {
+    font-family: "Segoe UI", "Segoe UI Variable", Tahoma, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    @apply bg-slate-100 text-slate-800;
+  }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  code, pre, .font-mono { font-family: Consolas, "Courier New", monospace; }
+  h1, h2, h3, h4 { letter-spacing: -0.015em; }
+}
+
+/* Scrollbars discrètes, proches des applications Windows. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #eef1f5; }
+::-webkit-scrollbar-thumb { background: #c4ccd6; border: 2px solid #eef1f5; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #9ba8b8; }
+
+:focus-visible { outline: 2px solid #3978bd; outline-offset: 2px; }

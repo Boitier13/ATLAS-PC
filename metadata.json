@@ -1,0 +1,6 @@
+{
+  "name": "ATLAS-PC",
+  "description": "ATLAS PC : application Windows d’inventaire du matériel et des logiciels, avec historique et comparaison des inventaires.",
+  "request_header_permissions": [],
+  "capabilities": []
+}
